@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Databáze a lokální data
+database/*
+!database/.gitkeep
+
+# Uživatelské nahrávání
+uploads/*
+!uploads/.gitkeep

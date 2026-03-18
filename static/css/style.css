@@ -1,0 +1,187 @@
+/* Základní reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f3f4f6;
+    color: #1f2937;
+    display: flex;
+    justify-content: center;
+    /* Upraveno pro lepší zobrazení delšího obsahu (galerie) */
+    align-items: flex-start; 
+    min-height: 100vh;
+    padding: 40px 0;
+}
+
+.container {
+    width: 100%;
+    max-width: 800px; /* Zvětšeno z 600px, aby galerie měla více místa */
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+h1 {
+    color: #111827;
+    font-size: 2rem;
+}
+
+h2 {
+    margin-bottom: 15px;
+    color: #374151;
+}
+
+/* Karta obsahu */
+.card {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    text-align: center;
+}
+
+.card p {
+    margin-bottom: 20px;
+    color: #4b5563;
+    line-height: 1.5;
+}
+
+/* Tlačítka */
+.button-group {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #3b82f6;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background-color 0.2s, transform 0.1s;
+    border: 2px solid #3b82f6;
+    cursor: pointer;
+}
+
+.btn:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+    transform: translateY(-1px);
+}
+
+.btn-outline {
+    background-color: transparent;
+    color: #3b82f6;
+}
+
+.btn-outline:hover {
+    background-color: #eff6ff;
+    color: #2563eb;
+}
+
+.btn-danger {
+    background-color: #ef4444;
+    border-color: #ef4444;
+}
+
+.btn-danger:hover {
+    background-color: #dc2626;
+    border-color: #dc2626;
+}
+
+/* Flash zprávy */
+.flash-messages {
+    margin-bottom: 20px;
+}
+
+.alert {
+    background-color: #d1fae5;
+    color: #065f46;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border-left: 5px solid #10b981;
+    font-weight: 500;
+}
+
+/* Přidáno pro budoucí formuláře (prihlaseni a registrace) */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    text-align: left;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* --- STYLY PRO GALERII (Nové) --- */
+.galerie-grid {
+    display: grid;
+    /* Automaticky naskládá sloupečky, minimální šířka fotky je 200px */
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.fotka-karta {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.fotka-karta:hover {
+    transform: scale(1.02);
+}
+
+.fotka-karta img {
+    width: 100%;
+    height: 180px; /* Trochu jsem zvětšil výšku */
+    /* Udrží poměr stran a ořízne přečnívající části */
+    object-fit: cover; 
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.fotka-nazev {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #374151;
+    /* Zkrátí dlouhé názvy souborů třemi tečkami */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 5px;
+}
+
+.fotka-datum {
+    font-size: 0.75rem;
+    color: #9ca3af;
+}

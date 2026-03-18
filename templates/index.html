@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domovská stránka</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <div class="alert">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <header>
+            <h1>Vítejte v aplikaci PyBox! 📦</h1>
+        </header>
+
+        <main>
+            {% if session.get('user_id') %}
+                <div class="card">
+                    <h2>Jste přihlášeni</h2>
+                    <p>Vaše uživatelské ID v systému je: <strong>{{ session['user_id'] }}</strong>.</p>
+                    <br>
+                    <div class="button-group">
+                        <a href="{{ url_for('moje_fotky') }}" class="btn">Přejít do Galerie 📸</a>
+                        <a href="{{ url_for('odhlaseni') }}" class="btn btn-danger">Odhlásit se</a>
+                    </div>
+                </div>
+            {% else %}
+                <div class="card">
+                    <h2>Nejste přihlášeni</h2>
+                    <p>Pro přístup k obsahu se prosím přihlaste nebo si vytvořte účet.</p>
+                    <div class="button-group">
+                        <a href="{{ url_for('prihlaseni') }}" class="btn">Přihlásit se</a>
+                        <a href="{{ url_for('registrace') }}" class="btn btn-outline">Zaregistrovat se</a>
+                    </div>
+                </div>
+            {% endif %}
+        </main>
+        
+    </div>
+</body>
+</html>
