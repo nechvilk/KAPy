@@ -14,6 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const regZprava = document.getElementById('reg-zprava');
     const regTlacitko = document.getElementById('reg-tlacitko');
 
+    // --- ELEMENTY PRO PŘIHLÁŠENÍ ---
+    const prihlasovaciFormular = document.getElementById('prihlasovaci-form');
+    const prihlZprava = document.getElementById('prihl-zprava');
+    const prihlTlacitko = document.getElementById('prihl-tlacitko');
+
     // 1. Zobrazení náhledu po výběru souboru
     if (fotoVstup) {
         fotoVstup.addEventListener('change', () => {
@@ -90,17 +95,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     }
 
-    // --- 4. NOVÉ: REGISTRACE PŘES AJAX ---
+    // 4. REGISTRACE PŘES AJAX
     if (registracniFormular) {
         registracniFormular.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Zastavíme refresh stránky
+            e.preventDefault();
 
-            // Vizuální zpětná vazba
             regTlacitko.disabled = true;
             regTlacitko.innerText = "Pracuji na tom... ⏳";
             regZprava.textContent = ""; 
 
-            // Sběr dat z formuláře
             const formData = {
                 jmeno: document.getElementById('jmeno').value,
                 email: document.getElementById('email').value,
@@ -117,16 +120,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (response.ok) {
-                    // Úspěch
                     regZprava.style.color = "green";
                     regZprava.textContent = result.zprava;
-                    
-                    // Přesměrování po chvilce, aby uživatel stihl přečíst zprávu
                     setTimeout(() => {
                         window.location.href = result.redirect;
                     }, 1500);
                 } else {
-                    // Chyba (např. email už existuje)
                     regZprava.style.color = "red";
                     regZprava.textContent = result.zprava;
                     regTlacitko.disabled = false;
@@ -139,6 +138,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 regZprava.textContent = "Ups, spojení se serverem selhalo. 🔌";
                 regTlacitko.disabled = false;
                 regTlacitko.innerText = "Zaregistrovat se";
+            }
+        });
+    }
+
+    // --- 5. NOVÉ: PŘIHLÁŠENÍ PŘES AJAX ---
+    if (prihlasovaciFormular) {
+        prihlasovaciFormular.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Zastavíme klasické odeslání
+
+            // Vizuální zpětná vazba
+            prihlTlacitko.disabled = true;
+            prihlTlacitko.innerText = "Ověřuji údaje... ⏳";
+            prihlZprava.textContent = ""; 
+
+            // Sběr dat
+            const formData = {
+                email: document.getElementById('email').value,
+                heslo: document.getElementById('heslo').value
+            };
+
+            try {
+                const response = await fetch('/api/prihlaseni', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Úspěšné přihlášení
+                    prihlZprava.style.color = "green";
+                    prihlZprava.textContent = result.zprava;
+                    
+                    // Přesměrování na index.html po chvíli
+                    setTimeout(() => {
+                        window.location.href = result.redirect;
+                    }, 1000);
+                } else {
+                    // Špatné heslo nebo neexistující uživatel
+                    prihlZprava.style.color = "red";
+                    prihlZprava.textContent = result.zprava;
+                    prihlTlacitko.disabled = false;
+                    prihlTlacitko.innerText = "Přihlásit se";
+                }
+
+            } catch (err) {
+                console.error("Chyba při přihlašování:", err);
+                prihlZprava.style.color = "red";
+                prihlZprava.textContent = "Ups, spojení se serverem selhalo. 🔌";
+                prihlTlacitko.disabled = false;
+                prihlTlacitko.innerText = "Přihlásit se";
             }
         });
     }

@@ -72,40 +72,52 @@ def api_registrace():
     finally:
         conn.close()
 
-# --- ROUTA PRO PŘIHLÁŠENÍ ---
-@app.route('/prihlaseni', methods=['GET', 'POST'])
+# --- 1. ROUTA PRO ZOBRAZENÍ STRÁNKY PŘIHLÁŠENÍ ---
+@app.route('/prihlaseni', methods=['GET'])
 def prihlaseni():
-    if request.method == 'POST':
-        email = request.form['email']
-        heslo_zadane = request.form['heslo']
-
-        conn = sqlite3.connect('database/moje_data.db')
-        cursor = conn.cursor()
-        
-        # Hledáme uživatele podle e-mailu
-        cursor.execute(
-        "SELECT id, heslo_hash FROM uzivatele WHERE email = ?", (email,)
-        )
-        radek = cursor.fetchone()
-        conn.close()
-
-        if radek:
-            uzivatel_id = radek[0]
-            ulozeny_hash = radek[1]
-
-            # Ověření hesla proti haši
-            if check_password_hash(ulozeny_hash, heslo_zadane):
-                session['user_id'] = uzivatel_id # "Digitální náramek"
-                flash("Vítejte zpět! 🎉")
-                return redirect(url_for('index'))
-            else:
-                flash("Nesprávné heslo. ❌")
-        else:
-            flash("Uživatel s tímto e-mailem neexistuje. ❌")
-        
-        return redirect(url_for('prihlaseni'))
-
+    # Jen vykreslí HTML šablonu
     return render_template('prihlaseni.html')
+
+# --- 2. API ROUTA PRO ZPRACOVÁNÍ PŘIHLÁŠENÍ (AJAX) ---
+@app.route('/api/prihlaseni', methods=['POST'])
+def api_prihlaseni():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"status": "error", "zprava": "Chybí data požadavku"}), 400
+
+    email = data.get('email')
+    heslo_zadane = data.get('heslo')
+
+    if not email or not heslo_zadane:
+        return jsonify({"status": "error", "zprava": "Zadejte e-mail i heslo."}), 400
+
+    conn = sqlite3.connect('database/moje_data.db')
+    cursor = conn.cursor()
+    
+    # Hledáme uživatele podle e-mailu
+    cursor.execute(
+        "SELECT id, heslo_hash FROM uzivatele WHERE email = ?", (email,)
+    )
+    radek = cursor.fetchone()
+    conn.close()
+
+    if radek:
+        uzivatel_id = radek[0]
+        ulozeny_hash = radek[1]
+
+        # Ověření hesla proti haši
+        if check_password_hash(ulozeny_hash, heslo_zadane):
+            session['user_id'] = uzivatel_id # "Digitální náramek"
+            return jsonify({
+                "status": "success", 
+                "zprava": "Vítejte zpět! 🎉 Přesměrovávám...",
+                "redirect": url_for('index')
+            }), 200
+        else:
+            return jsonify({"status": "error", "zprava": "Nesprávné heslo. ❌"}), 401 # 401 Unauthorized
+    else:
+        return jsonify({"status": "error", "zprava": "Uživatel s tímto e-mailem neexistuje. ❌"}), 404 # 404 Not Found
 
 # --- ROUTA PRO ZOBRAZENÍ GALERIE (moje_fotky.html) ---
 @app.route('/moje-fotky')
