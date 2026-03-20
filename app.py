@@ -21,41 +21,56 @@ def index():
     # Flask automaticky hledá ve složce 'templates'
     return render_template("index.html")
 
-# --- ROUTA PRO REGISTRACI ---
-@app.route('/registrace', methods=['GET', 'POST'])
+# --- 1. ROUTA PRO ZOBRAZENÍ STRÁNKY ---
+@app.route('/registrace', methods=['GET'])
 def registrace():
-    if request.method == 'POST':
-        jmeno = request.form['jmeno']
-        email = request.form['email']
-        heslo_raw = request.form['heslo']
-        
-        # Získání a formátování času
-        ted = datetime.now()
-        datum_reg = ted.strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Bezpečné zahašování
-        heslo_hash = generate_password_hash(heslo_raw)
+    # Jen vykreslí HTML šablonu, nic víc
+    return render_template('registrace.html')
 
-        conn = sqlite3.connect('database/moje_data.db')
-        cursor = conn.cursor()
+# --- 2. API ROUTA PRO ZPRACOVÁNÍ DAT (AJAX) ---
+@app.route('/api/registrace', methods=['POST'])
+def api_registrace():
+    data = request.get_json()
 
-        try:
-            # Bezpečné vložení pomocí placeholderů (?)
-            cursor.execute(
+    if not data:
+        return jsonify({"status": "error", "zprava": "Chybí data požadavku"}), 400
+
+    jmeno = data.get('jmeno')
+    email = data.get('email')
+    heslo_raw = data.get('heslo')
+
+    if not all([jmeno, email, heslo_raw]):
+        return jsonify({"status": "error", "zprava": "Všechna pole jsou povinná! ✍️"}), 400
+
+    ted = datetime.now()
+    datum_reg = ted.strftime("%Y-%m-%d %H:%M:%S")
+    heslo_hash = generate_password_hash(heslo_raw)
+
+    conn = sqlite3.connect('database/moje_data.db')
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
             "INSERT INTO uzivatele (jmeno, email, heslo_hash, datum_registrace) VALUES (?, ?, ?, ?)",
             (jmeno, email, heslo_hash, datum_reg)
-            )
-            conn.commit()
-            flash("Registrace proběhla úspěšně! Nyní se můžete přihlásit. ✅")
-            return redirect(url_for('prihlaseni'))
-        except sqlite3.IntegrityError:
-            # Zachycení duplicitního e-mailu (UNIQUE constraint)
-            flash("Tento e-mail už je zaregistrován. ❌")
-            return redirect(url_for('registrace'))
-        finally:
-            conn.close()
+        )
+        conn.commit()
+        
+        # Místo redirectu (který AJAX neumí přímo), posíláme URL k přesměrování
+        return jsonify({
+            "status": "success", 
+            "zprava": "Registrace proběhla úspěšně! ✅ Přesměrovávám...",
+            "redirect": url_for('prihlaseni')
+        }), 200
 
-    return render_template('registrace.html')
+    except sqlite3.IntegrityError:
+        return jsonify({
+            "status": "error", 
+            "zprava": "Tento e-mail už je zaregistrován. ❌"
+        }), 409
+
+    finally:
+        conn.close()
 
 # --- ROUTA PRO PŘIHLÁŠENÍ ---
 @app.route('/prihlaseni', methods=['GET', 'POST'])

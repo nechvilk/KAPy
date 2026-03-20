@@ -1,9 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- ELEMENTY PRO NAHRÁVÁNÍ FOTEK ---
     const fotoVstup = document.querySelector('#foto-vstup');
     const nahledImg = document.querySelector('#nahled-obrazek');
     const nahledKontajner = document.querySelector('#nahled-kontajner');
     const btnNahrat = document.querySelector('#tlacitko-nahrat');
     const vypis = document.querySelector('#vypis');
+
+    // --- ELEMENTY PRO FLASH ZPRÁVY ---
+    const flashMessages = document.querySelector('.flash-messages');
+
+    // --- ELEMENTY PRO REGISTRACI ---
+    const registracniFormular = document.getElementById('registracni-form');
+    const regZprava = document.getElementById('reg-zprava');
+    const regTlacitko = document.getElementById('reg-tlacitko');
 
     // 1. Zobrazení náhledu po výběru souboru
     if (fotoVstup) {
@@ -16,13 +25,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     nahledKontajner.style.display = 'block';
                 };
                 ctecka.readAsDataURL(soubor);
-                // Vyčistíme případnou předchozí zprávu
                 vypis.textContent = ''; 
             }
         });
     }
 
-    // 2. Odeslání na server přes Fetch API
+    // 2. Odeslání na server přes Fetch API (FOTKY)
     if (btnNahrat) {
         btnNahrat.addEventListener('click', () => {
             const soubor = fotoVstup.files[0];
@@ -49,12 +57,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     vypis.style.color = 'green';
                     vypis.textContent = data.zprava;
                     
-                    // Vyčistíme formulář po úspěšném nahrání
                     fotoVstup.value = '';
                     nahledKontajner.style.display = 'none';
 
-                    // --- NOVÁ ČÁST: Automatické obnovení stránky ---
-                    // Počkáme 1.5 sekundy, aby si uživatel stihl přečíst zprávu, a pak načteme galerii znovu
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
@@ -69,6 +74,72 @@ document.addEventListener('DOMContentLoaded', () => {
                 vypis.style.color = 'red';
                 vypis.textContent = "❌ Nepodařilo se spojit se serverem.";
             });
+        });
+    }
+
+    // 3. AUTOMATICKÉ SKRYTÍ FLASH ZPRÁV
+    if (flashMessages) {
+        setTimeout(() => {
+            flashMessages.style.transition = "opacity 0.8s ease, transform 0.6s ease";
+            flashMessages.style.opacity = "0";
+            flashMessages.style.transform = "translateY(-20px)"; 
+
+            setTimeout(() => {
+                flashMessages.remove();
+            }, 800);
+        }, 3000);
+    }
+
+    // --- 4. NOVÉ: REGISTRACE PŘES AJAX ---
+    if (registracniFormular) {
+        registracniFormular.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Zastavíme refresh stránky
+
+            // Vizuální zpětná vazba
+            regTlacitko.disabled = true;
+            regTlacitko.innerText = "Pracuji na tom... ⏳";
+            regZprava.textContent = ""; 
+
+            // Sběr dat z formuláře
+            const formData = {
+                jmeno: document.getElementById('jmeno').value,
+                email: document.getElementById('email').value,
+                heslo: document.getElementById('heslo').value
+            };
+
+            try {
+                const response = await fetch('/api/registrace', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Úspěch
+                    regZprava.style.color = "green";
+                    regZprava.textContent = result.zprava;
+                    
+                    // Přesměrování po chvilce, aby uživatel stihl přečíst zprávu
+                    setTimeout(() => {
+                        window.location.href = result.redirect;
+                    }, 1500);
+                } else {
+                    // Chyba (např. email už existuje)
+                    regZprava.style.color = "red";
+                    regZprava.textContent = result.zprava;
+                    regTlacitko.disabled = false;
+                    regTlacitko.innerText = "Zaregistrovat se";
+                }
+
+            } catch (err) {
+                console.error("Chyba při registraci:", err);
+                regZprava.style.color = "red";
+                regZprava.textContent = "Ups, spojení se serverem selhalo. 🔌";
+                regTlacitko.disabled = false;
+                regTlacitko.innerText = "Zaregistrovat se";
+            }
         });
     }
 });

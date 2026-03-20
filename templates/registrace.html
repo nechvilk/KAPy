@@ -23,7 +23,7 @@
             <h2>Vytvořit nový účet 👤</h2>
             <p>Vyplňte údaje níže pro registraci do vaší galerie.</p>
             
-            <form action="{{ url_for('registrace') }}" method="POST">
+            <form id="registracni-form">
                 <div style="margin-bottom: 15px;">
                     <label for="jmeno" style="display: block; margin-bottom: 5px; font-weight: bold; color: #374151;">Jméno:</label>
                     <input type="text" id="jmeno" name="jmeno" placeholder="Vaše jméno nebo přezdívka" required>
@@ -38,8 +38,10 @@
                     <label for="heslo" style="display: block; margin-bottom: 5px; font-weight: bold; color: #374151;">Heslo:</label>
                     <input type="password" id="heslo" name="heslo" placeholder="Tajuplné heslo" required>
                 </div>
+
+                <div id="reg-zprava" style="margin-bottom: 15px; font-weight: bold; text-align: center;"></div>
                 
-                <button type="submit" class="btn" style="width: 100%;">Zaregistrovat se</button>
+                <button type="submit" id="reg-tlacitko" class="btn" style="width: 100%;">Zaregistrovat se</button>
             </form>
             
             <div style="margin-top: 20px;">
@@ -49,5 +51,7 @@
             </div>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
