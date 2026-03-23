@@ -50,14 +50,12 @@
             {% if fotky %}
                 <div class="galerie-grid">
                     {% for fotka in fotky %}
-                        <div class="fotka-karta">
+                        <div class="fotka-karta" id="fotka-karta-{{ fotka['id'] }}">
                             <img src="{{ url_for('nahrany_soubor', filename=fotka['cesta_k_souboru']) }}" alt="{{ fotka['nazev_souboru'] }}">
                             <p class="fotka-nazev" title="{{ fotka['nazev_souboru'] }}">{{ fotka['nazev_souboru'] }}</p>
                             <p class="fotka-datum">{{ fotka['datum_nahrani'] }}</p>
                             
-                            <form action="{{ url_for('smazat_foto', foto_id=fotka['id']) }}" method="POST" onsubmit="return confirm('Opravdu chcete nenávratně smazat tuto fotku? 🗑️');" style="margin-top: 10px;">
-                                <button type="submit" class="btn btn-danger" style="width: 100%; padding: 8px; font-size: 0.85rem;">Smazat</button>
-                            </form>
+                            <button type="button" class="btn btn-danger btn-smazat" data-id="{{ fotka['id'] }}" style="width: 100%; padding: 8px; font-size: 0.85rem; margin-top: 10px;">Smazat</button>
                         </div>
                     {% endfor %}
                 </div>

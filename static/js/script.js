@@ -19,6 +19,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const prihlZprava = document.getElementById('prihl-zprava');
     const prihlTlacitko = document.getElementById('prihl-tlacitko');
 
+    // --- ELEMENTY PRO MAZÁNÍ FOTEK ---
+    const tlacitkaSmazat = document.querySelectorAll('.btn-smazat');
+
+    // --- ELEMENTY PRO ODHLÁŠENÍ ---
+    const btnOdhlasit = document.getElementById('btn-odhlasit');
+    const odhlaseniZprava = document.getElementById('odhlaseni-zprava');
+
     // 1. Zobrazení náhledu po výběru souboru
     if (fotoVstup) {
         fotoVstup.addEventListener('change', () => {
@@ -142,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 5. NOVÉ: PŘIHLÁŠENÍ PŘES AJAX ---
+    // --- 5. PŘIHLÁŠENÍ PŘES AJAX ---
     if (prihlasovaciFormular) {
         prihlasovaciFormular.addEventListener('submit', async (e) => {
             e.preventDefault(); // Zastavíme klasické odeslání
@@ -190,6 +197,102 @@ document.addEventListener('DOMContentLoaded', () => {
                 prihlZprava.textContent = "Ups, spojení se serverem selhalo. 🔌";
                 prihlTlacitko.disabled = false;
                 prihlTlacitko.innerText = "Přihlásit se";
+            }
+        });
+    }
+
+    // --- 6. SMAZÁNÍ FOTKY PŘES AJAX ---
+    tlacitkaSmazat.forEach(tlacitko => {
+        tlacitko.addEventListener('click', async (e) => {
+            // Získáme ID fotky z data atributu tlačítka
+            const fotoId = e.target.getAttribute('data-id');
+            
+            // Nahrazujeme původní onsubmit confirm
+            if (!confirm('Opravdu chcete nenávratně smazat tuto fotku? 🗑️')) {
+                return; // Pokud uživatel klikne na "Zrušit", nic se nestane
+            }
+
+            // Vizuální zpětná vazba na tlačítku
+            e.target.disabled = true;
+            e.target.innerText = "Mažu... ⏳";
+
+            try {
+                // Posíláme požadavek s metodou DELETE
+                const response = await fetch(`/api/smazat-foto/${fotoId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Úspěch! Najdeme celou kartu s fotkou a plynule ji schováme
+                    const kartaFotky = document.getElementById(`fotka-karta-${fotoId}`);
+                    if (kartaFotky) {
+                        kartaFotky.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+                        kartaFotky.style.opacity = "0";
+                        kartaFotky.style.transform = "scale(0.9)"; // Lehce se "zdrcne"
+                        
+                        // Po dokončení animace prvek úplně vymažeme z HTML
+                        setTimeout(() => {
+                            kartaFotky.remove();
+                        }, 400);
+                    }
+                } else {
+                    // Chyba ze strany serveru (např. uživatel nemá právo)
+                    alert("Chyba: " + result.zprava);
+                    e.target.disabled = false;
+                    e.target.innerText = "Smazat";
+                }
+
+            } catch (err) {
+                console.error("Chyba při mazání:", err);
+                alert("Nepodařilo se spojit se serverem. 🔌");
+                e.target.disabled = false;
+                e.target.innerText = "Smazat";
+            }
+        });
+    });
+    
+    // --- 7. ODHLÁŠENÍ PŘES AJAX ---
+    if (btnOdhlasit) {
+        btnOdhlasit.addEventListener('click', async () => {
+            // Vizuální odezva
+            btnOdhlasit.disabled = true;
+            btnOdhlasit.innerText = "Odhlašuji... ⏳";
+            if (odhlaseniZprava) odhlaseniZprava.textContent = "";
+
+            try {
+                const response = await fetch('/api/odhlaseni', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Úspěšné odhlášení
+                    if (odhlaseniZprava) {
+                        odhlaseniZprava.style.color = "green";
+                        odhlaseniZprava.textContent = result.zprava;
+                    } else {
+                        alert(result.zprava); // Pokud by na stránce nebyl div pro zprávu
+                    }
+                    
+                    // Počkáme sekundu a přesměrujeme (stránka se reloadne a načte se stav pro nepřihlášené)
+                    setTimeout(() => {
+                        window.location.href = result.redirect;
+                    }, 1000);
+                } else {
+                    alert("Chyba při odhlášení: " + result.zprava);
+                    btnOdhlasit.disabled = false;
+                    btnOdhlasit.innerText = "Odhlásit se";
+                }
+
+            } catch (err) {
+                console.error("Chyba:", err);
+                alert("Nepodařilo se spojit se serverem. 🔌");
+                btnOdhlasit.disabled = false;
+                btnOdhlasit.innerText = "Odhlásit se";
             }
         });
     }

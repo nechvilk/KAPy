@@ -192,16 +192,14 @@ def api_nahrat_foto():
             
     return jsonify({"status": "error", "zprava": "Nevybral jsi žádný soubor! 📁"}), 400
 
-# --- ROUTA PRO SMAZÁNÍ FOTKY ---
-@app.route('/smazat-foto/<int:foto_id>', methods=['POST'])
-def smazat_foto(foto_id):
+# --- API ROUTA PRO SMAZÁNÍ FOTKY (AJAX) ---
+@app.route('/api/smazat-foto/<int:foto_id>', methods=['DELETE'])
+def api_smazat_foto(foto_id):
     # 1. Kontrola přihlášení
     uzivatel_id = session.get('user_id')
     if not uzivatel_id:
-        flash("Pro tuto akci se musíte přihlásit! 🔒")
-        return redirect(url_for('prihlaseni'))
+        return jsonify({"status": "error", "zprava": "Pro tuto akci se musíte přihlásit! 🔒"}), 401
 
-    # Připojení ke správné databázi
     conn = sqlite3.connect('database/moje_data.db')
     cursor = conn.cursor()
 
@@ -211,38 +209,38 @@ def smazat_foto(foto_id):
         vysledek = cursor.fetchone()
 
         if vysledek:
-            nazev_souboru_na_disku = vysledek[0] # V naší DB je už uložen jen název
-            
-            # Cesta do složky uploads (kde fotky reálně jsou)
+            nazev_souboru_na_disku = vysledek[0]
             absolutni_cesta = os.path.join(UPLOAD_FOLDER, nazev_souboru_na_disku)
 
             # 3. Smazání souboru z disku (pokud existuje)
             if os.path.exists(absolutni_cesta):
                 os.remove(absolutni_cesta)
-                print(f"Soubor {absolutni_cesta} byl smazán z disku.")
 
             # 4. Smazání záznamu z databáze
             cursor.execute("DELETE FROM fotky WHERE id = ? AND uzivatel_id = ?", (foto_id, uzivatel_id))
             conn.commit()
-            flash("Fotka byla úspěšně smazána. 🗑️")
+            return jsonify({"status": "success", "zprava": "Fotka byla úspěšně smazána. 🗑️"}), 200
         else:
-            flash("Fotka nebyla nalezena nebo k ní nemáte přístup. 🚫")
+            return jsonify({"status": "error", "zprava": "Fotka nebyla nalezena nebo k ní nemáte přístup. 🚫"}), 404
 
     except Exception as e:
         conn.rollback()
-        flash(f"Chyba při mazání: {e}")
+        return jsonify({"status": "error", "zprava": f"Chyba při mazání: {e}"}), 500
     finally:
         conn.close()
 
-    return redirect(url_for('moje_fotky'))
-
-# --- ROUTA PRO ODHLÁŠENÍ ---
-@app.route('/odhlaseni')
-def odhlaseni():
+# --- API ROUTA PRO ODHLÁŠENÍ (AJAX) ---
+@app.route('/api/odhlaseni', methods=['POST'])
+def api_odhlaseni():
     # Odstraní ID uživatele ze session
     session.pop('user_id', None)
-    flash("Byli jste úspěšně odhlášeni. 👋")
-    return redirect(url_for('index'))
+    
+    # Vrátíme JSON s přesměrováním
+    return jsonify({
+        "status": "success", 
+        "zprava": "Byli jste úspěšně odhlášeni. 👋",
+        "redirect": url_for('index')
+    }), 200
 
 if __name__ == "__main__":
     app.run(debug=True)
