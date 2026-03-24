@@ -14,7 +14,7 @@ body {
     /* Upraveno pro lepší zobrazení delšího obsahu (galerie) */
     align-items: flex-start; 
     min-height: 100vh;
-    padding: 40px 0;
+    padding: 80px 0 40px; /* Horní padding 80px, aby obsah nezalezl pod lištu */
 }
 
 .container {
@@ -140,7 +140,7 @@ input:focus {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
-/* --- STYLY PRO GALERII (Nové) --- */
+/* --- STYLY PRO GALERII --- */
 .galerie-grid {
     display: grid;
     /* Automaticky naskládá sloupečky, minimální šířka fotky je 200px */
@@ -184,4 +184,88 @@ input:focus {
 .fotka-datum {
     font-size: 0.75rem;
     color: #9ca3af;
+}
+
+/* --- STYLY PRO TOAST NOTIFIKACE --- */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.toast {
+    min-width: 250px;
+    margin-bottom: 10px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast-success { background-color: #10b981; } /* Zelená */
+.toast-error { background-color: #ef4444; }   /* Červená */
+.toast-info { background-color: #3b82f6; }    /* Modrá */
+
+/* --- STYLY PRO NAVBAR --- */
+.navbar {
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    padding: 12px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed; /* Lišta zůstane nahoře i při rolování */
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.navbar-logo {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #111827;
+    text-decoration: none;
+    transition: transform 0.2s;
+}
+
+.navbar-logo:hover {
+    transform: scale(1.05);
+}
+
+.navbar-links {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.navbar-links a {
+    text-decoration: none;
+    color: #4b5563;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: color 0.2s;
+}
+
+.navbar-links a:hover {
+    color: #3b82f6;
+}
+
+/* Úprava tlačítek přímo v navbaru, aby nebyla tak obří */
+.navbar .btn {
+    padding: 8px 16px;
+    font-size: 0.9rem;
 }

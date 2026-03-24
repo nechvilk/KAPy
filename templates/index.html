@@ -3,10 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Domovská stránka</title>
+    <title>Domovská stránka | PyBox</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+
+    <nav class="navbar">
+        <a href="{{ url_for('index') }}" class="navbar-logo">PyBox 📦</a>
+        
+        <div class="navbar-links">
+            {% if session.get('user_id') %}
+                <span style="color: #9ca3af; font-size: 0.85rem;">ID: {{ session['user_id'] }}</span>
+                <a href="{{ url_for('moje_fotky') }}">Moje Galerie</a>
+                <button type="button" id="btn-odhlasit" class="btn btn-danger">Odhlásit se</button>
+            {% else %}
+                <a href="{{ url_for('prihlaseni') }}">Přihlásit</a>
+                <a href="{{ url_for('registrace') }}" class="btn btn-outline" style="padding: 6px 15px; border-width: 1px;">Registrace</a>
+            {% endif %}
+        </div>
+    </nav>
+
     <div class="container">
         
         {% with messages = get_flashed_messages() %}
@@ -20,28 +36,19 @@
         {% endwith %}
 
         <header>
-            <h1>Vítejte v aplikaci PyBox! 📦</h1>
+            <h1>Vítejte v aplikaci PyBox!</h1>
         </header>
 
         <main>
             {% if session.get('user_id') %}
                 <div class="card">
-                    <h2>Jste přihlášeni</h2>
-                    <p>Vaše uživatelské ID v systému je: <strong>{{ session['user_id'] }}</strong>.</p>
-                    <br>
-                    <div class="button-group">
-                        <a href="{{ url_for('moje_fotky') }}" class="btn">Přejít do Galerie 📸</a>
-                        <button type="button" id="btn-odhlasit" class="btn btn-danger">Odhlásit se</button>
-                    </div>
+                    <h2>Jste přihlášeni ✅</h2>
+                    <p>Můžete začít nahrávat své oblíbené fotky do galerie.</p>
                 </div>
             {% else %}
                 <div class="card">
-                    <h2>Nejste přihlášeni</h2>
+                    <h2>Nejste přihlášeni 🔒</h2>
                     <p>Pro přístup k obsahu se prosím přihlaste nebo si vytvořte účet.</p>
-                    <div class="button-group">
-                        <a href="{{ url_for('prihlaseni') }}" class="btn">Přihlásit se</a>
-                        <a href="{{ url_for('registrace') }}" class="btn btn-outline">Zaregistrovat se</a>
-                    </div>
                 </div>
             {% endif %}
         </main>

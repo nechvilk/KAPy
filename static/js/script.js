@@ -1,22 +1,44 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+    // --- FUNKCE PRO TOAST NOTIFIKACE ---
+    function showToast(message, type = 'info') {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            document.body.appendChild(container);
+        }
+
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerText = message;
+        container.appendChild(toast);
+
+        // Animace zobrazení
+        setTimeout(() => toast.classList.add('show'), 10);
+
+        // Automatické skrytí
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 400);
+        }, 4000);
+    }
+
     // --- ELEMENTY PRO NAHRÁVÁNÍ FOTEK ---
     const fotoVstup = document.querySelector('#foto-vstup');
     const nahledImg = document.querySelector('#nahled-obrazek');
     const nahledKontajner = document.querySelector('#nahled-kontajner');
     const btnNahrat = document.querySelector('#tlacitko-nahrat');
-    const vypis = document.querySelector('#vypis');
 
-    // --- ELEMENTY PRO FLASH ZPRÁVY ---
+    // --- ELEMENTY PRO FLASH ZPRÁVY (Serverové) ---
     const flashMessages = document.querySelector('.flash-messages');
 
     // --- ELEMENTY PRO REGISTRACI ---
     const registracniFormular = document.getElementById('registracni-form');
-    const regZprava = document.getElementById('reg-zprava');
     const regTlacitko = document.getElementById('reg-tlacitko');
 
     // --- ELEMENTY PRO PŘIHLÁŠENÍ ---
     const prihlasovaciFormular = document.getElementById('prihlasovaci-form');
-    const prihlZprava = document.getElementById('prihl-zprava');
     const prihlTlacitko = document.getElementById('prihl-tlacitko');
 
     // --- ELEMENTY PRO MAZÁNÍ FOTEK ---
@@ -24,7 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ELEMENTY PRO ODHLÁŠENÍ ---
     const btnOdhlasit = document.getElementById('btn-odhlasit');
-    const odhlaseniZprava = document.getElementById('odhlaseni-zprava');
 
     // 1. Zobrazení náhledu po výběru souboru
     if (fotoVstup) {
@@ -37,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     nahledKontajner.style.display = 'block';
                 };
                 ctecka.readAsDataURL(soubor);
-                vypis.textContent = ''; 
             }
         });
     }
@@ -48,13 +68,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const soubor = fotoVstup.files[0];
 
             if (!soubor) {
-                vypis.style.color = 'red';
-                vypis.textContent = "❌ Prosím, nejprve vyberte fotku!";
+                showToast("❌ Prosím, nejprve vyberte fotku!", "error");
                 return;
             }
 
-            vypis.style.color = '#3b82f6';
-            vypis.textContent = "⏳ Nahrávám...";
+            showToast("⏳ Nahrávám...", "info");
 
             const balicek = new FormData();
             balicek.append('foto', soubor);
@@ -66,9 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    vypis.style.color = 'green';
-                    vypis.textContent = data.zprava;
-                    
+                    showToast(data.zprava, "success");
                     fotoVstup.value = '';
                     nahledKontajner.style.display = 'none';
 
@@ -77,19 +93,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     }, 1500);
                     
                 } else {
-                    vypis.style.color = 'red';
-                    vypis.textContent = data.zprava;
+                    showToast(data.zprava, "error");
                 }
             })
             .catch(chyba => {
                 console.error("Chyba spojení:", chyba);
-                vypis.style.color = 'red';
-                vypis.textContent = "❌ Nepodařilo se spojit se serverem.";
+                showToast("❌ Nepodařilo se spojit se serverem.", "error");
             });
         });
     }
 
-    // 3. AUTOMATICKÉ SKRYTÍ FLASH ZPRÁV
+    // 3. AUTOMATICKÉ SKRYTÍ FLASH ZPRÁV (Zůstává pro klasické serverové zprávy)
     if (flashMessages) {
         setTimeout(() => {
             flashMessages.style.transition = "opacity 0.8s ease, transform 0.6s ease";
@@ -109,7 +123,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             regTlacitko.disabled = true;
             regTlacitko.innerText = "Pracuji na tom... ⏳";
-            regZprava.textContent = ""; 
 
             const formData = {
                 jmeno: document.getElementById('jmeno').value,
@@ -127,39 +140,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (response.ok) {
-                    regZprava.style.color = "green";
-                    regZprava.textContent = result.zprava;
+                    showToast(result.zprava, "success");
                     setTimeout(() => {
                         window.location.href = result.redirect;
                     }, 1500);
                 } else {
-                    regZprava.style.color = "red";
-                    regZprava.textContent = result.zprava;
+                    showToast(result.zprava, "error");
                     regTlacitko.disabled = false;
                     regTlacitko.innerText = "Zaregistrovat se";
                 }
 
             } catch (err) {
                 console.error("Chyba při registraci:", err);
-                regZprava.style.color = "red";
-                regZprava.textContent = "Ups, spojení se serverem selhalo. 🔌";
+                showToast("Ups, spojení se serverem selhalo. 🔌", "error");
                 regTlacitko.disabled = false;
                 regTlacitko.innerText = "Zaregistrovat se";
             }
         });
     }
 
-    // --- 5. PŘIHLÁŠENÍ PŘES AJAX ---
+    // 5. PŘIHLÁŠENÍ PŘES AJAX
     if (prihlasovaciFormular) {
         prihlasovaciFormular.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Zastavíme klasické odeslání
+            e.preventDefault(); 
 
-            // Vizuální zpětná vazba
             prihlTlacitko.disabled = true;
             prihlTlacitko.innerText = "Ověřuji údaje... ⏳";
-            prihlZprava.textContent = ""; 
 
-            // Sběr dat
             const formData = {
                 email: document.getElementById('email').value,
                 heslo: document.getElementById('heslo').value
@@ -175,49 +182,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (response.ok) {
-                    // Úspěšné přihlášení
-                    prihlZprava.style.color = "green";
-                    prihlZprava.textContent = result.zprava;
-                    
-                    // Přesměrování na index.html po chvíli
+                    showToast(result.zprava, "success");
                     setTimeout(() => {
                         window.location.href = result.redirect;
                     }, 1000);
                 } else {
-                    // Špatné heslo nebo neexistující uživatel
-                    prihlZprava.style.color = "red";
-                    prihlZprava.textContent = result.zprava;
+                    showToast(result.zprava, "error");
                     prihlTlacitko.disabled = false;
                     prihlTlacitko.innerText = "Přihlásit se";
                 }
 
             } catch (err) {
                 console.error("Chyba při přihlašování:", err);
-                prihlZprava.style.color = "red";
-                prihlZprava.textContent = "Ups, spojení se serverem selhalo. 🔌";
+                showToast("Ups, spojení se serverem selhalo. 🔌", "error");
                 prihlTlacitko.disabled = false;
                 prihlTlacitko.innerText = "Přihlásit se";
             }
         });
     }
 
-    // --- 6. SMAZÁNÍ FOTKY PŘES AJAX ---
+    // 6. SMAZÁNÍ FOTKY PŘES AJAX
     tlacitkaSmazat.forEach(tlacitko => {
         tlacitko.addEventListener('click', async (e) => {
-            // Získáme ID fotky z data atributu tlačítka
             const fotoId = e.target.getAttribute('data-id');
             
-            // Nahrazujeme původní onsubmit confirm
             if (!confirm('Opravdu chcete nenávratně smazat tuto fotku? 🗑️')) {
-                return; // Pokud uživatel klikne na "Zrušit", nic se nestane
+                return; 
             }
 
-            // Vizuální zpětná vazba na tlačítku
             e.target.disabled = true;
             e.target.innerText = "Mažu... ⏳";
 
             try {
-                // Posíláme požadavek s metodou DELETE
                 const response = await fetch(`/api/smazat-foto/${fotoId}`, {
                     method: 'DELETE'
                 });
@@ -225,41 +221,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (response.ok) {
-                    // Úspěch! Najdeme celou kartu s fotkou a plynule ji schováme
+                    showToast("Fotka byla smazána.", "success");
                     const kartaFotky = document.getElementById(`fotka-karta-${fotoId}`);
                     if (kartaFotky) {
                         kartaFotky.style.transition = "opacity 0.4s ease, transform 0.4s ease";
                         kartaFotky.style.opacity = "0";
-                        kartaFotky.style.transform = "scale(0.9)"; // Lehce se "zdrcne"
+                        kartaFotky.style.transform = "scale(0.9)"; 
                         
-                        // Po dokončení animace prvek úplně vymažeme z HTML
                         setTimeout(() => {
                             kartaFotky.remove();
                         }, 400);
                     }
                 } else {
-                    // Chyba ze strany serveru (např. uživatel nemá právo)
-                    alert("Chyba: " + result.zprava);
+                    showToast("Chyba: " + result.zprava, "error");
                     e.target.disabled = false;
                     e.target.innerText = "Smazat";
                 }
 
             } catch (err) {
                 console.error("Chyba při mazání:", err);
-                alert("Nepodařilo se spojit se serverem. 🔌");
+                showToast("Nepodařilo se spojit se serverem. 🔌", "error");
                 e.target.disabled = false;
                 e.target.innerText = "Smazat";
             }
         });
     });
     
-    // --- 7. ODHLÁŠENÍ PŘES AJAX ---
+    // 7. ODHLÁŠENÍ PŘES AJAX
     if (btnOdhlasit) {
         btnOdhlasit.addEventListener('click', async () => {
-            // Vizuální odezva
             btnOdhlasit.disabled = true;
             btnOdhlasit.innerText = "Odhlašuji... ⏳";
-            if (odhlaseniZprava) odhlaseniZprava.textContent = "";
 
             try {
                 const response = await fetch('/api/odhlaseni', {
@@ -270,27 +262,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (response.ok) {
-                    // Úspěšné odhlášení
-                    if (odhlaseniZprava) {
-                        odhlaseniZprava.style.color = "green";
-                        odhlaseniZprava.textContent = result.zprava;
-                    } else {
-                        alert(result.zprava); // Pokud by na stránce nebyl div pro zprávu
-                    }
-                    
-                    // Počkáme sekundu a přesměrujeme (stránka se reloadne a načte se stav pro nepřihlášené)
+                    showToast(result.zprava, "success");
                     setTimeout(() => {
                         window.location.href = result.redirect;
                     }, 1000);
                 } else {
-                    alert("Chyba při odhlášení: " + result.zprava);
+                    showToast("Chyba při odhlášení: " + result.zprava, "error");
                     btnOdhlasit.disabled = false;
                     btnOdhlasit.innerText = "Odhlásit se";
                 }
 
             } catch (err) {
                 console.error("Chyba:", err);
-                alert("Nepodařilo se spojit se serverem. 🔌");
+                showToast("Nepodařilo se spojit se serverem. 🔌", "error");
                 btnOdhlasit.disabled = false;
                 btnOdhlasit.innerText = "Odhlásit se";
             }

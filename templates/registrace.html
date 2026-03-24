@@ -7,6 +7,22 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+
+    <nav class="navbar">
+        <a href="{{ url_for('index') }}" class="navbar-logo">PyBox 📦</a>
+        
+        <div class="navbar-links">
+            {% if session.get('user_id') %}
+                <span style="color: #9ca3af; font-size: 0.85rem;">ID: {{ session['user_id'] }}</span>
+                <a href="{{ url_for('moje_fotky') }}">Moje Galerie</a>
+                <button type="button" id="btn-odhlasit" class="btn btn-danger">Odhlásit se</button>
+            {% else %}
+                <a href="{{ url_for('prihlaseni') }}">Přihlásit</a>
+                <a href="{{ url_for('registrace') }}" class="btn btn-outline" style="padding: 6px 15px; border-width: 1px;">Registrace</a>
+            {% endif %}
+        </div>
+    </nav>
+
     <div class="container">
         
         {% with messages = get_flashed_messages() %}
@@ -38,8 +54,6 @@
                     <label for="heslo" style="display: block; margin-bottom: 5px; font-weight: bold; color: #374151;">Heslo:</label>
                     <input type="password" id="heslo" name="heslo" placeholder="Tajuplné heslo" required>
                 </div>
-
-                <div id="reg-zprava" style="margin-bottom: 15px; font-weight: bold; text-align: center;"></div>
                 
                 <button type="submit" id="reg-tlacitko" class="btn" style="width: 100%;">Zaregistrovat se</button>
             </form>
