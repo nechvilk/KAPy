@@ -47,6 +47,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- ELEMENTY PRO ODHLÁŠENÍ ---
     const btnOdhlasit = document.getElementById('btn-odhlasit');
 
+    // --- ELEMENTY PRO ZVĚTŠENÍ FOTEK A LISTOVÁNÍ (MODAL) ---
+    const modal = document.getElementById('foto-modal');
+    const modalImg = document.getElementById('modal-obrazek');
+    const modalPopisek = document.getElementById('modal-popisek');
+    const btnZavrit = document.querySelector('.modal-zavrit');
+    const btnLeva = document.getElementById('sipka-leva');
+    const btnPrava = document.getElementById('sipka-prava');
+    
+
     // 1. Zobrazení náhledu po výběru souboru
     if (fotoVstup) {
         fotoVstup.addEventListener('change', () => {
@@ -277,6 +286,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast("Nepodařilo se spojit se serverem. 🔌", "error");
                 btnOdhlasit.disabled = false;
                 btnOdhlasit.innerText = "Odhlásit se";
+            }
+        });
+    }
+
+    // --- 8. ZVĚTŠENÍ FOTKY A LISTOVÁNÍ (MODAL) ---
+
+    // Vytvoříme z obrázků skutečné pole (Array), abychom v něm mohli listovat
+    const nahledyFotek = Array.from(document.querySelectorAll('.fotka-karta img'));
+    let aktualniIndex = 0; // Pamatuje si, kde zrovna jsme
+
+    // Funkce, která vykreslí fotku podle zadaného indexu
+    function zobrazFotku(index) {
+        // Kontrola, abychom nepřetáhli přes okraj (tzv. nekonečná smyčka)
+        if (index >= nahledyFotek.length) aktualniIndex = 0;
+        else if (index < 0) aktualniIndex = nahledyFotek.length - 1;
+        else aktualniIndex = index;
+
+        modalImg.src = nahledyFotek[aktualniIndex].src;
+        modalPopisek.textContent = nahledyFotek[aktualniIndex].alt;
+    }
+
+    if (modal && nahledyFotek.length > 0) {
+        // Kliknutí na malou fotku v galerii
+        nahledyFotek.forEach((img, index) => {
+            img.addEventListener('click', function() {
+                modal.classList.add('show');
+                zobrazFotku(index); // Zavoláme naši novou funkci
+            });
+        });
+
+        // Kliknutí na šipku DOLEVA
+        btnLeva.addEventListener('click', (e) => {
+            e.stopPropagation(); // Zabrání tomu, aby se modal omylem zavřel kliknutím
+            zobrazFotku(aktualniIndex - 1);
+        });
+
+        // Kliknutí na šipku DOPRAVA
+        btnPrava.addEventListener('click', (e) => {
+            e.stopPropagation();
+            zobrazFotku(aktualniIndex + 1);
+        });
+
+        // Zavření křížkem
+        btnZavrit.addEventListener('click', () => modal.classList.remove('show'));
+
+        // Zavření kliknutím kamkoliv VEDLE fotky (ale ne na šipky)
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.remove('show');
+        });
+
+        // Klávesové zkratky (Escape pro zavření, šipky pro listování)
+        document.addEventListener('keydown', (e) => {
+            if (modal.classList.contains('show')) {
+                if (e.key === "Escape") modal.classList.remove('show');
+                if (e.key === "ArrowLeft") zobrazFotku(aktualniIndex - 1);
+                if (e.key === "ArrowRight") zobrazFotku(aktualniIndex + 1);
             }
         });
     }

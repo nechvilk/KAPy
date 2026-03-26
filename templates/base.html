@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PyBox{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- GLOBÁLNÍ NAVBAR -->
+    <nav class="navbar">
+        <a href="{{ url_for('index') }}" class="navbar-logo">PyBox 📦</a>
+        <div class="navbar-links">
+            {% if session.get('user_id') %}
+                <span style="color: #9ca3af; font-size: 0.85rem; font-weight: bold;">👤 {{ session.get('user_jmeno') }}</span>
+                <a href="{{ url_for('moje_fotky') }}">Moje Galerie</a>
+                <button type="button" id="btn-odhlasit" class="btn btn-danger">Odhlásit se</button>
+            {% else %}
+                <a href="{{ url_for('prihlaseni') }}">Přihlásit</a>
+                <a href="{{ url_for('registrace') }}" class="btn btn-outline" style="padding: 6px 15px; border-width: 1px;">Registrace</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- GLOBÁLNÍ FLASH ZPRÁVY -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <div class="alert">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- TADY SE VYKRESLÍ OBSAH KONKRÉTNÍ STRÁNKY -->
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- GLOBÁLNÍ SKRIPTY -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

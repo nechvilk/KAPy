@@ -93,22 +93,25 @@ def api_prihlaseni():
         return jsonify({"status": "error", "zprava": "Zadejte e-mail i heslo."}), 400
 
     conn = sqlite3.connect('database/moje_data.db')
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     # Hledáme uživatele podle e-mailu
     cursor.execute(
-        "SELECT id, heslo_hash FROM uzivatele WHERE email = ?", (email,)
+        "SELECT id, heslo_hash, jmeno FROM uzivatele WHERE email = ?", (email,)
     )
     radek = cursor.fetchone()
     conn.close()
 
     if radek:
-        uzivatel_id = radek[0]
-        ulozeny_hash = radek[1]
+        uzivatel_id = radek['id']
+        ulozeny_hash = radek['heslo_hash']
+        uzivatel_jmeno = radek['jmeno']  # Díky row_factory můžeme použít jméno sloupce
 
         # Ověření hesla proti haši
         if check_password_hash(ulozeny_hash, heslo_zadane):
             session['user_id'] = uzivatel_id # "Digitální náramek"
+            session['user_jmeno'] = uzivatel_jmeno # Uložíme i jméno uživatele
             return jsonify({
                 "status": "success", 
                 "zprava": "Vítejte zpět! 🎉 Přesměrovávám...",

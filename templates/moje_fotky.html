@@ -1,40 +1,7 @@
-<!DOCTYPE html>
-<html lang="cs">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moje galerie | PyBox</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-
-    <nav class="navbar">
-        <a href="{{ url_for('index') }}" class="navbar-logo">PyBox 📦</a>
+{% extends "base.html" %}
+{% block title %}Moje galerie | PyBox{% endblock %}
+{% block content %}
         
-        <div class="navbar-links">
-            {% if session.get('user_id') %}
-                <span style="color: #9ca3af; font-size: 0.85rem;">ID: {{ session['user_id'] }}</span>
-                <a href="{{ url_for('moje_fotky') }}">Moje Galerie</a>
-                <button type="button" id="btn-odhlasit" class="btn btn-danger">Odhlásit se</button>
-            {% else %}
-                <a href="{{ url_for('prihlaseni') }}">Přihlásit</a>
-                <a href="{{ url_for('registrace') }}" class="btn btn-outline" style="padding: 6px 15px; border-width: 1px;">Registrace</a>
-            {% endif %}
-        </div>
-    </nav>
-    
-    <div class="container">
-        
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <div class="flash-messages">
-                    {% for message in messages %}
-                        <div class="alert">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-
         <div class="card">
             <h2>Nahrát novou fotku 📸</h2>
             <p>Vyberte obrázek z vašeho zařízení.</p>
@@ -79,8 +46,14 @@
                 </p>
             {% endif %}
         </div>
-    </div> 
 
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-</body>
-</html>
+<!-- Vyskakovací okno pro zvětšení fotky -->
+    <div id="foto-modal" class="modal">
+        <span class="modal-zavrit">&times;</span>
+        <a class="sipka predchozi" id="sipka-leva">&#10094;</a>
+        <img class="modal-obsah" id="modal-obrazek">
+        <a class="sipka dalsi" id="sipka-prava">&#10095;</a>
+        <div id="modal-popisek"></div>
+    </div>
+
+{% endblock %}
