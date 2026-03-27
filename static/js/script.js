@@ -232,6 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     showToast("Fotka byla smazána.", "success");
                     const kartaFotky = document.getElementById(`fotka-karta-${fotoId}`);
+                    
                     if (kartaFotky) {
                         kartaFotky.style.transition = "opacity 0.4s ease, transform 0.4s ease";
                         kartaFotky.style.opacity = "0";
@@ -239,6 +240,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         setTimeout(() => {
                             kartaFotky.remove();
+                            
+                            // --- KONTROLA PRÁZDNÉ GALERIE ---
+                            const grid = document.querySelector('.galerie-grid');
+                            
+                            // Pokud grid existuje a nezbyly v něm žádné karty
+                            if (grid && grid.querySelectorAll('.fotka-karta').length === 0) {
+                                const kontejner = document.getElementById('galerie-kontejner');
+                                if (kontejner) {
+                                    kontejner.innerHTML = `
+                                        <h2 style="text-align: center; margin-bottom: 20px;">Vaše galerie 🖼️</h2>
+                                        <p class="prazdna-galerie-info" style="text-align: center; color: #6b7280; background: #fff; padding: 20px; border-radius: 8px;">
+                                            Zatím zde nemáte žádné fotky. Nahrajte svou první výše! 😊
+                                        </p>
+                                    `;
+                                }
+                            }
+                            // ----------------------------------------
                         }, 400);
                     }
                 } else {
@@ -292,33 +310,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 8. ZVĚTŠENÍ FOTKY A LISTOVÁNÍ (MODAL) ---
 
-    // Vytvoříme z obrázků skutečné pole (Array), abychom v něm mohli listovat
-    const nahledyFotek = Array.from(document.querySelectorAll('.fotka-karta img'));
     let aktualniIndex = 0; // Pamatuje si, kde zrovna jsme
+
+    // Pomocná funkce, která si VŽDY načte aktuální stav fotek na stránce
+    function getAktualniFotky() {
+        return Array.from(document.querySelectorAll('.fotka-karta img'));
+    }
 
     // Funkce, která vykreslí fotku podle zadaného indexu
     function zobrazFotku(index) {
+        const fotky = getAktualniFotky();
+        
+        // Pokud galerie zůstala po smazání prázdná, modal rovnou zavřeme
+        if (fotky.length === 0) {
+            modal.classList.remove('show');
+            return;
+        }
+
         // Kontrola, abychom nepřetáhli přes okraj (tzv. nekonečná smyčka)
-        if (index >= nahledyFotek.length) aktualniIndex = 0;
-        else if (index < 0) aktualniIndex = nahledyFotek.length - 1;
+        if (index >= fotky.length) aktualniIndex = 0;
+        else if (index < 0) aktualniIndex = fotky.length - 1;
         else aktualniIndex = index;
 
-        modalImg.src = nahledyFotek[aktualniIndex].src;
-        modalPopisek.textContent = nahledyFotek[aktualniIndex].alt;
+        modalImg.src = fotky[aktualniIndex].src;
+        modalPopisek.textContent = fotky[aktualniIndex].alt;
     }
 
-    if (modal && nahledyFotek.length > 0) {
-        // Kliknutí na malou fotku v galerii
-        nahledyFotek.forEach((img, index) => {
-            img.addEventListener('click', function() {
-                modal.classList.add('show');
-                zobrazFotku(index); // Zavoláme naši novou funkci
-            });
+    if (modal) {
+        // Využijeme tzv. Event Delegation - nasloucháme kliknutí na celé stránce
+        // a pokud to byl obrázek v galerii, zobrazíme ho.
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.matches('.fotka-karta img')) {
+                const fotky = getAktualniFotky();
+                // Zjistíme aktuální pozici kliknuté fotky v aktuálním seznamu
+                aktualniIndex = fotky.indexOf(e.target); 
+                
+                if (aktualniIndex !== -1) {
+                    modal.classList.add('show');
+                    zobrazFotku(aktualniIndex);
+                }
+            }
         });
 
         // Kliknutí na šipku DOLEVA
         btnLeva.addEventListener('click', (e) => {
-            e.stopPropagation(); // Zabrání tomu, aby se modal omylem zavřel kliknutím
+            e.stopPropagation(); 
             zobrazFotku(aktualniIndex - 1);
         });
 

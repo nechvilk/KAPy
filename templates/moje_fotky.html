@@ -1,53 +1,51 @@
 {% extends "base.html" %}
 {% block title %}Moje galerie | PyBox{% endblock %}
+
 {% block content %}
+    <div class="card">
+        <h2>Nahrát novou fotku 📸</h2>
+        <p>Vyberte obrázek z vašeho zařízení.</p>
         
-        <div class="card">
-            <h2>Nahrát novou fotku 📸</h2>
-            <p>Vyberte obrázek z vašeho zařízení.</p>
-            
-            <form id="upload-form" enctype="multipart/form-data">
-                <div style="margin-bottom: 25px;">
-                    <label for="foto-vstup" style="display: block; margin-bottom: 5px; font-weight: bold;">Vybrat soubor:</label>
-                    <input type="file" id="foto-vstup" name="foto" accept=".jpg, .jpeg, .png, .gif" required style="padding: 10px; border: 1px dashed #3b82f6; border-radius: 8px; width: 100%;">
-                </div>
-                
-                <div id="nahled-kontajner" style="display: none; margin-bottom: 20px; text-align: center;">
-                    <p style="margin-bottom: 10px; font-size: 0.9rem; color: #6b7280;">Náhled fotky:</p>
-                    <img id="nahled-obrazek" style="max-width: 100%; border-radius: 8px; max-height: 300px; object-fit: contain;">
-                </div>
-
-                <button type="button" id="tlacitko-nahrat" class="btn" style="width: 100%;">Nahrát fotku</button>
-            </form>
-            
-            <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
-                <a href="{{ url_for('index') }}" class="btn btn-outline" style="display: block; text-align: center; margin-top: 15px;">Zpět na úvod</a>
+        <form id="upload-form" enctype="multipart/form-data">
+            <div style="margin-bottom: 25px;">
+                <label for="foto-vstup" style="display: block; margin-bottom: 5px; font-weight: bold;">Vybrat soubor:</label>
+                <input type="file" id="foto-vstup" name="foto" accept=".jpg, .jpeg, .png, .gif" required style="padding: 10px; border: 1px dashed #3b82f6; border-radius: 8px; width: 100%;">
             </div>
-        </div>
-
-        <div style="margin-top: 40px;">
-            <h2 style="text-align: center; margin-bottom: 20px;">Vaše galerie 🖼️</h2>
             
-            {% if fotky %}
-                <div class="galerie-grid">
-                    {% for fotka in fotky %}
-                        <div class="fotka-karta" id="fotka-karta-{{ fotka['id'] }}">
-                            <img src="{{ url_for('nahrany_soubor', filename=fotka['cesta_k_souboru']) }}" alt="{{ fotka['nazev_souboru'] }}">
-                            <p class="fotka-nazev" title="{{ fotka['nazev_souboru'] }}">{{ fotka['nazev_souboru'] }}</p>
-                            <p class="fotka-datum">{{ fotka['datum_nahrani'] }}</p>
-                            
-                            <button type="button" class="btn btn-danger btn-smazat" data-id="{{ fotka['id'] }}" style="width: 100%; padding: 8px; font-size: 0.85rem; margin-top: 10px;">Smazat</button>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p style="text-align: center; color: #6b7280; background: #fff; padding: 20px; border-radius: 8px;">
-                    Zatím zde nemáte žádné fotky. Nahrajte svou první výše! 😊
-                </p>
-            {% endif %}
-        </div>
+            <div id="nahled-kontajner" style="display: none; margin-bottom: 20px; text-align: center;">
+                <p style="margin-bottom: 10px; font-size: 0.9rem; color: #6b7280;">Náhled fotky:</p>
+                <img id="nahled-obrazek" style="max-width: 100%; border-radius: 8px; max-height: 300px; object-fit: contain;">
+            </div>
 
-<!-- Vyskakovací okno pro zvětšení fotky -->
+            <button type="button" id="tlacitko-nahrat" class="btn" style="width: 100%;">Nahrát fotku</button>
+        </form>
+        <!-- Tlačítko "Zpět na úvod" jsme odstranili, logo v navbaru stačí -->
+    </div>
+
+    <div id="galerie-kontejner" style="margin-top: 40px;">
+        <h2 style="text-align: center; margin-bottom: 20px;">Vaše galerie 🖼️</h2>
+        
+        {% if fotky %}
+            <div class="galerie-grid">
+                {% for fotka in fotky %}
+                    <div class="fotka-karta" id="fotka-karta-{{ fotka['id'] }}">
+                        <img src="{{ url_for('nahrany_soubor', filename=fotka['cesta_k_souboru']) }}" alt="{{ fotka['nazev_souboru'] }}">
+                        <p class="fotka-nazev" title="{{ fotka['nazev_souboru'] }}">{{ fotka['nazev_souboru'] }}</p>
+                        <p class="fotka-datum">{{ fotka['datum_nahrani'] }}</p>
+                        
+                        <button type="button" class="btn btn-danger btn-smazat" data-id="{{ fotka['id'] }}" style="width: 100%; padding: 8px; font-size: 0.85rem; margin-top: 10px;">Smazat</button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Tuhle hlášku si JavaScript "půjčí", pokud smažeš poslední fotku -->
+            <p class="prazdna-galerie-info" style="text-align: center; color: #6b7280; background: #fff; padding: 20px; border-radius: 8px;">
+                Zatím zde nemáte žádné fotky. Nahrajte svou první výše! 😊
+            </p>
+        {% endif %}
+    </div>
+
+    <!-- Vyskakovací okno pro zvětšení fotky -->
     <div id="foto-modal" class="modal">
         <span class="modal-zavrit">&times;</span>
         <a class="sipka predchozi" id="sipka-leva">&#10094;</a>
@@ -55,5 +53,4 @@
         <a class="sipka dalsi" id="sipka-prava">&#10095;</a>
         <div id="modal-popisek"></div>
     </div>
-
 {% endblock %}
