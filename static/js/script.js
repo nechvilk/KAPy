@@ -41,9 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const prihlasovaciFormular = document.getElementById('prihlasovaci-form');
     const prihlTlacitko = document.getElementById('prihl-tlacitko');
 
-    // --- ELEMENTY PRO MAZÁNÍ FOTEK ---
-    const tlacitkaSmazat = document.querySelectorAll('.btn-smazat');
-
     // --- ELEMENTY PRO ODHLÁŠENÍ ---
     const btnOdhlasit = document.getElementById('btn-odhlasit');
 
@@ -96,18 +93,43 @@ document.addEventListener('DOMContentLoaded', () => {
                     showToast(data.zprava, "success");
                     fotoVstup.value = '';
                     nahledKontajner.style.display = 'none';
+                    btnNahrat.disabled = false;
 
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
-                    
+                    // --- VLOŽENÍ FOTKY BEZ REFREŠE ---
+                    const novaFotka = data.fotka; // Očekáváme URL nové fotky a její ID
+                    const kartaHTML = `
+                        <div class="fotka-karta" id="fotka-karta-${novaFotka.id}">
+                            <img src="/uploads/${novaFotka.cesta_k_souboru}" alt="${novaFotka.nazev_souboru}">
+                            <p class="fotka-nazev" title="${novaFotka.nazev_souboru}">${novaFotka.nazev_souboru}</p>
+                            <p class="fotka-datum">${novaFotka.datum_nahrani}</p>
+                            <button type="button" class="btn btn-danger btn-smazat" data-id="${novaFotka.id}" style="width: 100%; padding: 8px; font-size: 0.85rem; margin-top: 10px;">Smazat</button>
+                        </div>
+                    `;
+
+                    let grid = document.querySelector('.galerie-grid');
+                    const kontejner = document.getElementById('galerie-kontejner');
+
+                    if (!grid) {
+                        // Pokud je galerie prázdná (je tam hláška), nahradíme ji mřížkou
+                        kontejner.innerHTML = `
+                            <h2 style="text-align: center; margin-bottom: 20px;">Vaše galerie 🖼️</h2>
+                            <div class="galerie-grid">
+                                ${kartaHTML}
+                            </div>
+                        `;
+                    } else {
+                        // Pokud mřížka už existuje, vložíme novou fotku na první místo (zleva nahoru)
+                        grid.insertAdjacentHTML('afterbegin', kartaHTML);
+                    }  
                 } else {
                     showToast(data.zprava, "error");
+                    btnNahrat.disabled = false;
                 }
             })
             .catch(chyba => {
                 console.error("Chyba spojení:", chyba);
                 showToast("❌ Nepodařilo se spojit se serverem.", "error");
+                btnNahrat.disabled = false;
             });
         });
     }
@@ -210,17 +232,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 6. SMAZÁNÍ FOTKY PŘES AJAX
-    tlacitkaSmazat.forEach(tlacitko => {
-        tlacitko.addEventListener('click', async (e) => {
-            const fotoId = e.target.getAttribute('data-id');
+    // 6. SMAZÁNÍ FOTKY PŘES AJAX (Upraveno na event delegation pro dynamicky přidané fotky)
+    // Místo tlacitkaSmazat.forEach posloucháme kliknutí na celém dokumentu
+    document.addEventListener('click', async (e) => {
+        // Zkontrolujeme, zda to, na co se kliklo, je tlačítko "Smazat"
+        if (e.target && e.target.classList.contains('btn-smazat')) {
+            const tlacitko = e.target;
+            const fotoId = tlacitko.getAttribute('data-id');
             
             if (!confirm('Opravdu chcete nenávratně smazat tuto fotku? 🗑️')) {
                 return; 
             }
 
-            e.target.disabled = true;
-            e.target.innerText = "Mažu... ⏳";
+            tlacitko.disabled = true;
+            tlacitko.innerText = "Mažu... ⏳";
 
             try {
                 const response = await fetch(`/api/smazat-foto/${fotoId}`, {
@@ -241,10 +266,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         setTimeout(() => {
                             kartaFotky.remove();
                             
-                            // --- KONTROLA PRÁZDNÉ GALERIE ---
+                            // Kontrola prázdné galerie
                             const grid = document.querySelector('.galerie-grid');
-                            
-                            // Pokud grid existuje a nezbyly v něm žádné karty
                             if (grid && grid.querySelectorAll('.fotka-karta').length === 0) {
                                 const kontejner = document.getElementById('galerie-kontejner');
                                 if (kontejner) {
@@ -256,22 +279,21 @@ document.addEventListener('DOMContentLoaded', () => {
                                     `;
                                 }
                             }
-                            // ----------------------------------------
                         }, 400);
                     }
                 } else {
                     showToast("Chyba: " + result.zprava, "error");
-                    e.target.disabled = false;
-                    e.target.innerText = "Smazat";
+                    tlacitko.disabled = false;
+                    tlacitko.innerText = "Smazat";
                 }
 
             } catch (err) {
                 console.error("Chyba při mazání:", err);
                 showToast("Nepodařilo se spojit se serverem. 🔌", "error");
-                e.target.disabled = false;
-                e.target.innerText = "Smazat";
+                tlacitko.disabled = false;
+                tlacitko.innerText = "Smazat";
             }
-        });
+        }
     });
     
     // 7. ODHLÁŠENÍ PŘES AJAX
@@ -341,6 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // a pokud to byl obrázek v galerii, zobrazíme ho.
         document.addEventListener('click', function(e) {
             if (e.target && e.target.matches('.fotka-karta img')) {
+                console.log(e.target);
                 const fotky = getAktualniFotky();
                 // Zjistíme aktuální pozici kliknuté fotky v aktuálním seznamu
                 aktualniIndex = fotky.indexOf(e.target); 
@@ -361,6 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Kliknutí na šipku DOPRAVA
         btnPrava.addEventListener('click', (e) => {
             e.stopPropagation();
+            console.log("Kliknuto na doprava, aktuální index:", aktualniIndex);
             zobrazFotku(aktualniIndex + 1);
         });
 

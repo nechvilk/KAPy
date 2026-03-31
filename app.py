@@ -185,8 +185,21 @@ def api_nahrat_foto():
                 "INSERT INTO fotky (nazev_souboru, cesta_k_souboru, uzivatel_id, datum_nahrani) VALUES (?, ?, ?, ?)",
                 (soubor.filename, novy_nazev, uzivatel_id, ted)
             )
+            nove_id = cursor.lastrowid # Získáme ID té čerstvě vložené fotky
             conn.commit()
-            return jsonify({"status": "success", "zprava": "Fotka byla úspěšně nahrána! 🚀"})
+
+            # Pošleme zpět nejen hlášku, ale i data o nové fotce!
+            return jsonify({
+                "status": "success",
+                "zprava": "Fotka byla úspěšně nahrána! 🚀",
+                "fotka": {
+                    "id": nove_id,
+                    "nazev_souboru": soubor.filename,
+                    "cesta_k_souboru": novy_nazev,
+                    "datum_nahrani": ted
+                }
+            })
+        
         except Exception as e:
             conn.rollback()
             return jsonify({"status": "error", "zprava": f"Chyba databáze: {e}"}), 500
