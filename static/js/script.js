@@ -68,35 +68,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. Odeslání na server přes Fetch API (FOTKY)
+    // --- 2. NAHRÁVÁNÍ FOTKY S PROGRESS BAREM ---
     if (btnNahrat) {
         btnNahrat.addEventListener('click', () => {
             const soubor = fotoVstup.files[0];
-
             if (!soubor) {
                 showToast("❌ Prosím, nejprve vyberte fotku!", "error");
                 return;
             }
 
-            showToast("⏳ Nahrávám...", "info");
-
             const balicek = new FormData();
             balicek.append('foto', soubor);
 
-            fetch('/api/nahrat-foto', {
-                method: 'POST',
-                body: balicek
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
+            // Elementy progress baru
+            const wrapper = document.getElementById('progress-wrapper');
+            const bar = document.getElementById('progress-bar');
+            const text = document.getElementById('progress-text');
+
+            // Příprava odesílání (XMLHttpRequest)
+            const xhr = new XMLHttpRequest();
+            btnNahrat.disabled = true;
+            wrapper.style.display = 'block';
+
+            // --- TADY SE DĚJE TA MAGIE SLEDOVÁNÍ ---
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const procenta = Math.round((e.loaded / e.total) * 100);
+                    bar.style.width = procenta + '%';
+                    text.innerText = `Nahrávám: ${procenta}%`;
+                }
+            });
+
+            // Co se stane, když je hotovo
+            xhr.onload = function() {
+                const data = JSON.parse(xhr.responseText);
+                
+                if (xhr.status === 200 && data.status === 'success') {
                     showToast(data.zprava, "success");
                     fotoVstup.value = '';
                     nahledKontajner.style.display = 'none';
-                    btnNahrat.disabled = false;
-
-                    // --- VLOŽENÍ FOTKY BEZ REFREŠE ---
-                    const novaFotka = data.fotka; // Očekáváme URL nové fotky a její ID
+                    
+                    // Vložení fotky do galerie (tvůj kód z minula)
+                    const novaFotka = data.fotka;
                     const kartaHTML = `
                         <div class="fotka-karta" id="fotka-karta-${novaFotka.id}">
                             <img src="/uploads/${novaFotka.cesta_k_souboru}" alt="${novaFotka.nazev_souboru}">
@@ -105,32 +118,35 @@ document.addEventListener('DOMContentLoaded', () => {
                             <button type="button" class="btn btn-danger btn-smazat" data-id="${novaFotka.id}" style="width: 100%; padding: 8px; font-size: 0.85rem; margin-top: 10px;">Smazat</button>
                         </div>
                     `;
-
                     let grid = document.querySelector('.galerie-grid');
                     const kontejner = document.getElementById('galerie-kontejner');
 
                     if (!grid) {
-                        // Pokud je galerie prázdná (je tam hláška), nahradíme ji mřížkou
-                        kontejner.innerHTML = `
-                            <h2 style="text-align: center; margin-bottom: 20px;">Vaše galerie 🖼️</h2>
-                            <div class="galerie-grid">
-                                ${kartaHTML}
-                            </div>
-                        `;
+                        kontejner.innerHTML = `<h2 style="text-align: center; margin-bottom: 20px;">Vaše galerie 🖼️</h2><div class="galerie-grid">${kartaHTML}</div>`;
                     } else {
-                        // Pokud mřížka už existuje, vložíme novou fotku na první místo (zleva nahoru)
                         grid.insertAdjacentHTML('afterbegin', kartaHTML);
-                    }  
+                    }
                 } else {
-                    showToast(data.zprava, "error");
-                    btnNahrat.disabled = false;
+                    showToast(data.zprava || "Chyba při nahrávání", "error");
                 }
-            })
-            .catch(chyba => {
-                console.error("Chyba spojení:", chyba);
-                showToast("❌ Nepodařilo se spojit se serverem.", "error");
+
+                // Reset baru pro příště
+                setTimeout(() => {
+                    wrapper.style.display = 'none';
+                    bar.style.width = '0%';
+                    btnNahrat.disabled = false;
+                }, 1000);
+            };
+
+            xhr.onerror = function() {
+                showToast("❌ Chyba spojení se serverem.", "error");
                 btnNahrat.disabled = false;
-            });
+                wrapper.style.display = 'none';
+            };
+
+            // Odeslání
+            xhr.open('POST', '/api/nahrat-foto');
+            xhr.send(balicek);
         });
     }
 

@@ -18,6 +18,14 @@
             </div>
 
             <button type="button" id="tlacitko-nahrat" class="btn" style="width: 100%;">Nahrát fotku</button>
+            
+            <div id="progress-wrapper" style="display: none; margin-top: 20px;">
+                <div style="background: #e2e8f0; border-radius: 10px; height: 10px; width: 100%; overflow: hidden;">
+                    <div id="progress-bar" style="background: #3b82f6; width: 0%; height: 100%; transition: width 0.2s ease;"></div>
+                </div>
+            <p id="progress-text" style="text-align: center; font-size: 0.8rem; margin-top: 5px; color: #64748b;">Nahrávám: 0%</p>
+            </div>
+
         </form>
         <!-- Tlačítko "Zpět na úvod" jsme odstranili, logo v navbaru stačí -->
     </div>
