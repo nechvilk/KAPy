@@ -5,6 +5,8 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
+import secrets
+import string
 
 # Definice povolených souborů
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif'}
@@ -26,6 +28,22 @@ def index():
 def registrace():
     # Jen vykreslí HTML šablonu, nic víc
     return render_template('registrace.html')
+
+# --- API ROUTA PRO VYGENEROVÁNÍ HESLA ---
+@app.route('/api/generovat-heslo', methods=['GET'])
+def api_generovat_heslo():
+    # Zvýšil jsem délku na 12 pro ještě lepší bezpečnost, ale můžeš nechat 10
+    length = 12 
+    alphabet = string.ascii_letters + string.digits + string.punctuation
+    
+    # Vygenerování hesla pomocí tvého kódu
+    password = ''.join(secrets.choice(alphabet) for _ in range(length))
+    
+    # Odeslání hesla zpět na frontend ve formátu JSON
+    return jsonify({
+        "status": "success", 
+        "heslo": password
+    }), 200
 
 # --- 2. API ROUTA PRO ZPRACOVÁNÍ DAT (AJAX) ---
 @app.route('/api/registrace', methods=['POST'])
@@ -97,21 +115,24 @@ def api_prihlaseni():
     cursor = conn.cursor()
     
     # Hledáme uživatele podle e-mailu
+    # Rozšíříme SELECT o sloupce role a je_blokovan
     cursor.execute(
-        "SELECT id, heslo_hash, jmeno FROM uzivatele WHERE email = ?", (email,)
+        "SELECT id, heslo_hash, jmeno, role, je_blokovan FROM uzivatele WHERE email = ?", (email,)
     )
     radek = cursor.fetchone()
     conn.close()
 
     if radek:
-        uzivatel_id = radek['id']
-        ulozeny_hash = radek['heslo_hash']
-        uzivatel_jmeno = radek['jmeno']  # Díky row_factory můžeme použít jméno sloupce
-
+        # Nejprve zkontrolujeme, jestli není uživatel blokován
+        if radek['je_blokovan'] == 1:
+            return jsonify({"status": "error", "zprava": "Váš účet je blokován. 🚫 Kontaktujte podporu."}), 403 # 403 Forbidden
+     
         # Ověření hesla proti haši
-        if check_password_hash(ulozeny_hash, heslo_zadane):
-            session['user_id'] = uzivatel_id # "Digitální náramek"
-            session['user_jmeno'] = uzivatel_jmeno # Uložíme i jméno uživatele
+        if check_password_hash(radek['heslo_hash'], heslo_zadane):
+            session['user_id'] = radek['id'] # "Digitální náramek"
+            session['user_jmeno'] = radek['jmeno'] # Uložíme i jméno uživatele
+            session['role'] = radek['role'] # Uložíme i roli uživatele do náramku
+
             return jsonify({
                 "status": "success", 
                 "zprava": "Vítejte zpět! 🎉 Přesměrovávám...",
@@ -121,6 +142,41 @@ def api_prihlaseni():
             return jsonify({"status": "error", "zprava": "Nesprávné heslo. ❌"}), 401 # 401 Unauthorized
     else:
         return jsonify({"status": "error", "zprava": "Uživatel s tímto e-mailem neexistuje. ❌"}), 404 # 404 Not Found
+
+# --- ROUTA PRO ADMIN ROZHRANÍ (admin.html) ---
+@app.route('/admin')
+def admin_panel():
+    # Kontrola, zda je přihlášen admin
+    if session.get('role') != 'admin':
+        flash("Sem mají přístup pouze vyvolení! 🛑")
+        return redirect(url_for('index'))
+
+    conn = sqlite3.connect('database/moje_data.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Načteme všechny uživatele (kromě tebe samotného, abys ses omylem nezablokoval)
+    cursor.execute("SELECT id, jmeno, email, role, je_blokovan FROM uzivatele WHERE id != ?", (session.get('user_id'),))
+    vsichni_uzivatele = cursor.fetchall()
+    conn.close()
+
+    return render_template('admin.html', uzivatele=vsichni_uzivatele)
+
+# API pro přepnutí blokace (AJAX)
+@app.route('/api/admin/prepni-blokaci/<int:target_user_id>', methods=['POST'])
+def api_prepni_blokaci(target_user_id):
+    if session.get('role') != 'admin':
+        return jsonify({"status": "error", "zprava": "Neautorizovaný přístup"}), 403
+
+    conn = sqlite3.connect('database/moje_data.db')
+    cursor = conn.cursor()
+    
+    # Zjistíme aktuální stav a otočíme ho (0->1, 1->0)
+    cursor.execute("UPDATE uzivatele SET je_blokovan = 1 - je_blokovan WHERE id = ?", (target_user_id,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"status": "success", "zprava": "Stav uživatele byl změněn. ✅"})
 
 # --- ROUTA PRO ZOBRAZENÍ GALERIE (moje_fotky.html) ---
 @app.route('/moje-fotky')
@@ -254,7 +310,7 @@ def api_odhlaseni():
     # Vrátíme JSON s přesměrováním
     return jsonify({
         "status": "success", 
-        "zprava": "Byli jste úspěšně odhlášeni. 👋",
+        "zprava": "Byli jste úspěšně odhlášeni.",
         "redirect": url_for('index')
     }), 200
 

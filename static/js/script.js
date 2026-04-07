@@ -37,6 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const registracniFormular = document.getElementById('registracni-form');
     const regTlacitko = document.getElementById('reg-tlacitko');
 
+    // --- ELEMENTY PRO GENERÁTOR HESLA ---
+    const btnGenerovat = document.getElementById('btn-generovat');
+    const inputHeslo = document.getElementById('heslo');
+
     // --- ELEMENTY PRO PŘIHLÁŠENÍ ---
     const prihlasovaciFormular = document.getElementById('prihlasovaci-form');
     const prihlTlacitko = document.getElementById('prihl-tlacitko');
@@ -51,7 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnZavrit = document.querySelector('.modal-zavrit');
     const btnLeva = document.getElementById('sipka-leva');
     const btnPrava = document.getElementById('sipka-prava');
-    
 
     // 1. Zobrazení náhledu po výběru souboru
     if (fotoVstup) {
@@ -421,4 +424,85 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // 9. GENERÁTOR HESLA
+    if (btnGenerovat && inputHeslo) {
+        btnGenerovat.addEventListener('click', async () => {
+            // Animace na tlačítku
+            const puvodniText = btnGenerovat.innerText;
+            btnGenerovat.innerText = "Kouzlím... 🪄";
+            btnGenerovat.disabled = true;
+
+            try {
+                // Zavoláme tvoji novou Python routu (metoda je defaultně GET)
+                const response = await fetch('/api/generovat-heslo');
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    // Vložíme heslo do políčka
+                    inputHeslo.value = result.heslo;
+                    
+                    // Odkryjeme heslo (změníme typ na text), aby ho uživatel viděl
+                    inputHeslo.type = 'text'; 
+                    
+                    showToast("Bezpečné heslo bylo vygenerováno! 🔑", "success");
+                } else {
+                    showToast("Něco se pokazilo při generování hesla.", "error");
+                }
+            } catch (err) {
+                console.error("Chyba:", err);
+                showToast("Spojení se serverem selhalo. 🔌", "error");
+            } finally {
+                // Vrátíme tlačítko do původního stavu
+                btnGenerovat.innerText = puvodniText;
+                btnGenerovat.disabled = false;
+            }
+        });
+    }
+
+    // --- 10. ADMIN: PŘEPÍNÁNÍ BLOKACE PŘES AJAX ---
+    document.addEventListener('click', async (e) => {
+        // Zkontrolujeme, zda se kliklo na tlačítko pro blokaci
+        if (e.target && e.target.classList.contains('btn-toggle-ban')) {
+            const tlacitko = e.target;
+            const userId = tlacitko.getAttribute('data-id');
+            const puvodniText = tlacitko.innerText.trim();
+            
+            // Vizuální odezva
+            tlacitko.disabled = true;
+            tlacitko.innerText = "Zpracuji... ⏳";
+
+            try {
+                const response = await fetch(`/api/admin/prepni-blokaci/${userId}`, { 
+                    method: 'POST' 
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Úspěch! Upravíme DOM
+                    const stavKontejner = document.getElementById(`stav-text-${userId}`);
+                    
+                    if (puvodniText === "Zablokovat") {
+                        stavKontejner.innerHTML = '<span style="color: red; font-weight: bold;">Zablokován 🚫</span>';
+                        tlacitko.innerText = "Odblokovat";
+                    } else {
+                        stavKontejner.innerHTML = '<span style="color: green;">Aktivní ✅</span>';
+                        tlacitko.innerText = "Zablokovat";
+                    }
+                    // Využijeme tvoji funkci showToast!
+                    showToast("Stav uživatele byl úspěšně změněn.", "success");
+                } else {
+                    showToast("Chyba: " + result.zprava, "error");
+                    tlacitko.innerText = puvodniText; 
+                }
+            } catch (err) {
+                console.error("Chyba spojení:", err);
+                showToast("Nepodařilo se spojit se serverem. 🔌", "error");
+                tlacitko.innerText = puvodniText; 
+            } finally {
+                tlacitko.disabled = false;
+            }
+        }
+    });
+
 });

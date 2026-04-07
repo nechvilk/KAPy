@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Administrace | PyBox{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 100%;">
+    <h2>Správa uživatelů 👑</h2>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 20px; text-align: left;">
+        <thead>
+            <tr style="border-bottom: 2px solid #eee;">
+                <th>Jméno</th>
+                <th>Email</th>
+                <th>Stav</th>
+                <th>Akce</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in uzivatele %}
+            <tr style="border-bottom: 1px solid #eee;">
+                <td>{{ u.jmeno }}</td>
+                <td>{{ u.email }}</td>
+                <td>
+                    <span id="stav-text-{{ u.id }}">
+                        {% if u.je_blokovan == 1 %}
+                            <span style="color: red; font-weight: bold;">Zablokován 🚫</span>
+                        {% else %}
+                            <span style="color: green;">Aktivní ✅</span>
+                        {% endif %}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-outline btn-toggle-ban" data-id="{{ u.id }}">
+                        {% if u.je_blokovan == 1 %}Odblokovat{% else %}Zablokovat{% endif %}
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

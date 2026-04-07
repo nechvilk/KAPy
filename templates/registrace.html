@@ -17,9 +17,12 @@
                     <input type="email" id="email" name="email" placeholder="vas@email.cz" required>
                 </div>
                 
-                <div style="margin-bottom: 25px;">
+               <div style="margin-bottom: 25px;">
                     <label for="heslo" style="display: block; margin-bottom: 5px; font-weight: bold; color: #374151;">Heslo:</label>
-                    <input type="password" id="heslo" name="heslo" placeholder="Tajuplné heslo" required>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="password" id="heslo" name="heslo" placeholder="Tajuplné heslo" required style="flex-grow: 1;">
+                        <button type="button" id="btn-generovat" class="btn btn-outline">Vygenerovat</button>
+                    </div>
                 </div>
                 
                 <button type="submit" id="reg-tlacitko" class="btn" style="width: 100%;">Zaregistrovat se</button>
@@ -27,8 +30,6 @@
             
             <div style="margin-top: 20px;">
                 <p>Už máte účet? <a href="{{ url_for('prihlaseni') }}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">Přihlaste se zde</a>.</p>
-                <br>
-                <a href="{{ url_for('index') }}" class="btn btn-outline">Zpět na úvod</a>
             </div>
         </div>
 
