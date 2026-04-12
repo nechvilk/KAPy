@@ -9,9 +9,12 @@ wheels/
 # Virtual environments
 .venv
 
+# Ignoruj tajné klíče a nastavení
+.env
+
 # Databáze a lokální data
-database/*
-!database/.gitkeep
+instance/*
+!instance/.gitkeep
 
 # Uživatelské nahrávání
 uploads/*

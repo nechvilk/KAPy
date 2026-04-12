@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, render_template, request, redirect, url_for, flash, session
 from flask import send_from_directory
+from dotenv import load_dotenv
 import sqlite3
+from database_init import inicializuj_databazi
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -15,8 +17,26 @@ UPLOAD_FOLDER = 'uploads'
 # Ujistíme se, že složka existuje
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-app = Flask(__name__)
-app.secret_key = 'vase_velmi_tajne_heslo' # Nutné pro session a flash
+# Načteme proměnné ze souboru .env
+load_dotenv()
+
+app = Flask(__name__, instance_relative_config=True)
+# Nastavení tajného klíče z .env (pokud chybí, použije se fallback)
+#app.secret_key = os.getenv('SECRET_KEY', 'defaultni-nebezpecny-klic') # Nutné pro session a flash
+app.secret_key = os.environ['SECRET_KEY']
+
+# Cesta k databázi v instance složce
+# Flask automaticky vytvoří cestu app.instance_path
+db_path = os.path.join(app.instance_path, os.getenv('DATABASE_NAME', 'moje_data.db'))
+# Zajistíme, aby složka instance existovala (vytvoří se při prvním spuštění)
+os.makedirs(app.instance_path, exist_ok=True)
+
+# AUTOMATICKÉ SPUŠTĚNÍ SKRIPTU
+if not os.path.exists(db_path):
+    print("Databáze nenalezena, vytvářím novou...")
+    inicializuj_databazi(db_path)
+else:
+    print(f"Databáze nalezena zde: {db_path}")
 
 @app.route("/")
 def index():
@@ -64,7 +84,7 @@ def api_registrace():
     datum_reg = ted.strftime("%Y-%m-%d %H:%M:%S")
     heslo_hash = generate_password_hash(heslo_raw)
 
-    conn = sqlite3.connect('database/moje_data.db')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     try:
@@ -110,7 +130,7 @@ def api_prihlaseni():
     if not email or not heslo_zadane:
         return jsonify({"status": "error", "zprava": "Zadejte e-mail i heslo."}), 400
 
-    conn = sqlite3.connect('database/moje_data.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -151,7 +171,7 @@ def admin_panel():
         flash("Sem mají přístup pouze vyvolení! 🛑")
         return redirect(url_for('index'))
 
-    conn = sqlite3.connect('database/moje_data.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -168,7 +188,7 @@ def api_prepni_blokaci(target_user_id):
     if session.get('role') != 'admin':
         return jsonify({"status": "error", "zprava": "Neautorizovaný přístup"}), 403
 
-    conn = sqlite3.connect('database/moje_data.db')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
     # Zjistíme aktuální stav a otočíme ho (0->1, 1->0)
@@ -187,7 +207,7 @@ def moje_fotky():
         return redirect(url_for('prihlaseni'))
     
     # Připojíme se do DB a načteme uživatelovy fotky
-    conn = sqlite3.connect('database/moje_data.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row # Díky tomuto můžeme v HTML psát fotka['nazev_souboru'] místo fotka[0]
     cursor = conn.cursor()
     
@@ -233,7 +253,7 @@ def api_nahrat_foto():
 
         # 3. Zápis do databáze
         ted = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        conn = sqlite3.connect('database/moje_data.db')
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         try:
@@ -272,7 +292,7 @@ def api_smazat_foto(foto_id):
     if not uzivatel_id:
         return jsonify({"status": "error", "zprava": "Pro tuto akci se musíte přihlásit! 🔒"}), 401
 
-    conn = sqlite3.connect('database/moje_data.db')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     try:
