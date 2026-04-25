@@ -56,44 +56,114 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLeva = document.getElementById('sipka-leva');
     const btnPrava = document.getElementById('sipka-prava');
 
-    // 1. Zobrazení náhledu po výběru souboru
+// Naše "chytrá paměť" pro správu stavu fotek před odesláním
+    let fotkyKNahrani = [];
+
+    // --- 1. ZOBRAZENÍ NÁHLEDŮ (INTELIGENTNÍ VELIKOST + VYŘAZOVÁNÍ) ---
     if (fotoVstup) {
         fotoVstup.addEventListener('change', () => {
-            const soubor = fotoVstup.files[0];
-            if (soubor) {
-                const ctecka = new FileReader();
-                ctecka.onload = (e) => {
-                    nahledImg.src = e.target.result;
-                    nahledKontajner.style.display = 'block';
-                };
-                ctecka.readAsDataURL(soubor);
+            const soubory = fotoVstup.files;
+            
+            // Vyčistíme kontejner a naši paměť při každém novém výběru
+            nahledKontajner.innerHTML = ''; 
+            fotkyKNahrani = []; 
+            
+            if (soubory.length > 0) {
+                nahledKontajner.style.display = 'flex';
+                nahledKontajner.style.flexWrap = 'wrap';
+                nahledKontajner.style.gap = '10px';
+                nahledKontajner.style.marginTop = '15px';
+                nahledKontajner.style.justifyContent = 'center';
+
+                // Inteligentní výpočet velikosti
+                let velikost = 175; 
+                if (soubory.length > 15) velikost = 70;  
+                else if (soubory.length > 8) velikost = 100;  
+                else if (soubory.length > 4) velikost = 120; 
+                else if (soubory.length > 2) velikost = 150; 
+
+                // Projdeme vybrané soubory
+                Array.from(soubory).forEach((soubor, index) => {
+                    if (soubor.type.startsWith('image/')) {
+                        
+                        // Uložíme si soubor do naší chytré paměti (ve výchozím stavu není vyřazen)
+                        fotkyKNahrani.push({ dataSouboru: soubor, vyrazeno: false });
+
+                        const ctecka = new FileReader();
+                        ctecka.onload = (e) => {
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            
+                            // Stylování náhledu
+                            img.style.width = velikost + 'px';
+                            img.style.height = velikost + 'px';
+                            img.style.objectFit = 'cover'; 
+                            img.style.borderRadius = '8px';
+                            img.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+                            img.style.opacity = '0';
+                            
+                            // Přidáme plynulý přechod i pro naše zešednutí (filter) a zmenšení (transform)
+                            img.style.transition = 'opacity 0.3s ease-in, filter 0.3s ease, transform 0.3s ease';
+                            
+                            // Ukážeme uživateli, že na to jde kliknout (změní se kurzor na ručičku)
+                            img.style.cursor = 'pointer';
+
+                            // --- MAGIE KLIKÁNÍ PRO VYŘAZENÍ ---
+                            img.addEventListener('click', () => {
+                                // Přepneme stav v naší paměti
+                                fotkyKNahrani[index].vyrazeno = !fotkyKNahrani[index].vyrazeno;
+                                
+                                if (fotkyKNahrani[index].vyrazeno) {
+                                    // Zešedne, zprůhlední a mírně se zmenší (efekt "vypnuto")
+                                    img.style.filter = 'grayscale(100%) opacity(40%)';
+                                    img.style.transform = 'scale(0.85)';
+                                } else {
+                                    // Vrátí se do normálu
+                                    img.style.filter = 'none';
+                                    img.style.transform = 'scale(1)';
+                                }
+                            });
+
+                            nahledKontajner.appendChild(img);
+                            setTimeout(() => img.style.opacity = '1', 10);
+                        };
+                        ctecka.readAsDataURL(soubor);
+                    }
+                });
+            } else {
+                nahledKontajner.style.display = 'none';
             }
         });
     }
 
-    // --- 2. NAHRÁVÁNÍ FOTKY S PROGRESS BAREM ---
+    // --- 2. NAHRÁVÁNÍ FOTEK S PROGRESS BAREM ---
     if (btnNahrat) {
         btnNahrat.addEventListener('click', () => {
-            const soubor = fotoVstup.files[0];
-            if (!soubor) {
-                showToast("❌ Prosím, nejprve vyberte fotku!", "error");
+            
+            // Vyfiltrujeme z naší paměti jen ty fotky, které NEJSOU vyřazené
+            const fotkyKOdeslani = fotkyKNahrani.filter(polozka => polozka.vyrazeno === false);
+
+            if (fotkyKOdeslani.length === 0) {
+                showToast("❌ Nemáte vybrané žádné fotky k nahrání!", "error");
                 return;
             }
 
             const balicek = new FormData();
-            balicek.append('foto', soubor);
+            
+            // Zabalíme do FormData jen ty aktivní
+            fotkyKOdeslani.forEach(polozka => {
+                balicek.append('fotky', polozka.dataSouboru);
+            });
 
             // Elementy progress baru
             const wrapper = document.getElementById('progress-wrapper');
             const bar = document.getElementById('progress-bar');
             const text = document.getElementById('progress-text');
 
-            // Příprava odesílání (XMLHttpRequest)
             const xhr = new XMLHttpRequest();
             btnNahrat.disabled = true;
             wrapper.style.display = 'block';
 
-            // --- TADY SE DĚJE TA MAGIE SLEDOVÁNÍ ---
             xhr.upload.addEventListener('progress', (e) => {
                 if (e.lengthComputable) {
                     const procenta = Math.round((e.loaded / e.total) * 100);
@@ -102,38 +172,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Co se stane, když je hotovo
             xhr.onload = function() {
                 const data = JSON.parse(xhr.responseText);
                 
                 if (xhr.status === 200 && data.status === 'success') {
                     showToast(data.zprava, "success");
+                    
+                    // Reset všeho po úspěšném nahrání
                     fotoVstup.value = '';
+                    fotkyKNahrani = []; // Vyčistíme i naši paměť
+                    nahledKontajner.innerHTML = ''; 
                     nahledKontajner.style.display = 'none';
                     
-                    // Vložení fotky do galerie (tvůj kód z minula)
-                    const novaFotka = data.fotka;
-                    const kartaHTML = `
-                        <div class="fotka-karta" id="fotka-karta-${novaFotka.id}">
-                            <img src="/uploads/${novaFotka.cesta_k_souboru}" alt="${novaFotka.nazev_souboru}">
-                            <p class="fotka-nazev" title="${novaFotka.nazev_souboru}">${novaFotka.nazev_souboru}</p>
-                            <p class="fotka-datum">${novaFotka.datum_nahrani}</p>
-                            <button type="button" class="btn btn-danger btn-smazat" data-id="${novaFotka.id}" style="width: 100%; padding: 8px; font-size: 0.85rem; margin-top: 10px;">Smazat</button>
-                        </div>
-                    `;
                     let grid = document.querySelector('.galerie-grid');
                     const kontejner = document.getElementById('galerie-kontejner');
 
                     if (!grid) {
-                        kontejner.innerHTML = `<h2 style="text-align: center; margin-bottom: 20px;">Vaše galerie 🖼️</h2><div class="galerie-grid">${kartaHTML}</div>`;
-                    } else {
-                        grid.insertAdjacentHTML('afterbegin', kartaHTML);
+                        kontejner.innerHTML = `<h2 style="text-align: center; margin-bottom: 20px;">Vaše galerie 🖼️</h2><div class="galerie-grid"></div>`;
+                        grid = document.querySelector('.galerie-grid');
                     }
+
+                    data.fotky.forEach(novaFotka => {
+                        const kartaHTML = `
+                            <div class="fotka-karta" id="fotka-karta-${novaFotka.id}">
+                                <img src="/uploads/${novaFotka.cesta_k_souboru}" alt="${novaFotka.nazev_souboru}">
+                                <p class="fotka-nazev" title="${novaFotka.nazev_souboru}">${novaFotka.nazev_souboru}</p>
+                                <p class="fotka-datum">${novaFotka.datum_nahrani}</p>
+                                <button type="button" class="btn btn-danger btn-smazat" data-id="${novaFotka.id}" style="width: 100%; padding: 8px; font-size: 0.85rem; margin-top: 10px;">Smazat</button>
+                            </div>
+                        `;
+                        grid.insertAdjacentHTML('afterbegin', kartaHTML);
+                    });
+                    
                 } else {
                     showToast(data.zprava || "Chyba při nahrávání", "error");
                 }
 
-                // Reset baru pro příště
                 setTimeout(() => {
                     wrapper.style.display = 'none';
                     bar.style.width = '0%';
@@ -147,7 +221,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 wrapper.style.display = 'none';
             };
 
-            // Odeslání
             xhr.open('POST', '/api/nahrat-foto');
             xhr.send(balicek);
         });

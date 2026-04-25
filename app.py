@@ -228,61 +228,73 @@ def nahrany_soubor(filename):
     # Vezme soubor ze složky 'uploads' a pošle ho jako obrázek do HTML
     return send_from_directory(UPLOAD_FOLDER, filename)
 
-# --- ROUTA PRO UPLOAD SOUBORU ---
+# --- ROUTA PRO UPLOAD ---
 @app.route('/api/nahrat-foto', methods=['POST'])
 def api_nahrat_foto():
-    # 1. Kontrola přihlášení ze session
+    # 1. Kontrola přihlášení
     uzivatel_id = session.get('user_id')
     if not uzivatel_id:
         return jsonify({"status": "error", "zprava": "Pro nahrávání se musíte přihlásit! 🔒"}), 401
 
-    soubor = request.files.get('foto')
+    # 2. Získáme SEZNAM všech souborů pod klíčem 'fotky' (změněno z 'foto')
+    soubory = request.files.getlist('fotky')
     
-    if soubor and soubor.filename != '':
-        bezpecny_nazev = secure_filename(soubor.filename)
-        jmeno, pripona = os.path.splitext(bezpecny_nazev)
-        
-        if pripona.lower() not in ALLOWED_EXTENSIONS:
-            return jsonify({"status": "error", "zprava": "Tento typ souboru není povolen! 🚫"}), 400
+    # Kontrola, zda uživatel vůbec něco vybral
+    if not soubory or soubory[0].filename == '':
+        return jsonify({"status": "error", "zprava": "Nevybral jsi žádný soubor! 📁"}), 400
 
-        cas_string = datetime.now().strftime("%Y%m%d_%H%M%S")
-        novy_nazev = f"{jmeno}_{uzivatel_id}_{cas_string}{pripona}"
-        
-        cesta_na_disk = os.path.join(UPLOAD_FOLDER, novy_nazev)
-        soubor.save(cesta_na_disk)
+    uspesne_fotky = [] # Sem si uložíme data pro odeslání zpět do JS
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
 
-        # 3. Zápis do databáze
-        ted = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+    try:
+        ted_datum_cas = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        try:
-            cursor.execute(
-                "INSERT INTO fotky (nazev_souboru, cesta_k_souboru, uzivatel_id, datum_nahrani) VALUES (?, ?, ?, ?)",
-                (soubor.filename, novy_nazev, uzivatel_id, ted)
-            )
-            nove_id = cursor.lastrowid # Získáme ID té čerstvě vložené fotky
-            conn.commit()
+        for soubor in soubory:
+            if soubor and soubor.filename != '':
+                bezpecny_nazev = secure_filename(soubor.filename)
+                jmeno, pripona = os.path.splitext(bezpecny_nazev)
+                
+                if pripona.lower() not in ALLOWED_EXTENSIONS:
+                    continue # Nepovolený soubor přeskočíme a jdeme na další
 
-            # Pošleme zpět nejen hlášku, ale i data o nové fotce!
-            return jsonify({
-                "status": "success",
-                "zprava": "Fotka byla úspěšně nahrána! 🚀",
-                "fotka": {
+                # Přidali jsme %f (mikrosekundy), aby se fotky nahrané naráz nepřepsaly
+                cas_string = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                novy_nazev = f"{jmeno}_{uzivatel_id}_{cas_string}{pripona}"
+                
+                cesta_na_disk = os.path.join(UPLOAD_FOLDER, novy_nazev)
+                soubor.save(cesta_na_disk)
+
+                cursor.execute(
+                    "INSERT INTO fotky (nazev_souboru, cesta_k_souboru, uzivatel_id, datum_nahrani) VALUES (?, ?, ?, ?)",
+                    (soubor.filename, novy_nazev, uzivatel_id, ted_datum_cas)
+                )
+                nove_id = cursor.lastrowid
+                
+                uspesne_fotky.append({
                     "id": nove_id,
                     "nazev_souboru": soubor.filename,
                     "cesta_k_souboru": novy_nazev,
-                    "datum_nahrani": ted
-                }
+                    "datum_nahrani": ted_datum_cas
+                })
+
+        conn.commit()
+
+        # Pokud se nahrála alespoň jedna fotka, vracíme úspěch
+        if uspesne_fotky:
+            return jsonify({
+                "status": "success",
+                "zprava": f"Úspěšně nahráno {len(uspesne_fotky)} fotek! 🚀",
+                "fotky": uspesne_fotky # Posíláme POLE fotek, ne jen jednu
             })
-        
-        except Exception as e:
-            conn.rollback()
-            return jsonify({"status": "error", "zprava": f"Chyba databáze: {e}"}), 500
-        finally:
-            conn.close()
+        else:
+            return jsonify({"status": "error", "zprava": "Nepodařilo se nahrát žádný povolený soubor. 🚫"}), 400
             
-    return jsonify({"status": "error", "zprava": "Nevybral jsi žádný soubor! 📁"}), 400
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"status": "error", "zprava": f"Chyba při ukládání: {e}"}), 500
+    finally:
+        conn.close()
 
 # --- API ROUTA PRO SMAZÁNÍ FOTKY (AJAX) ---
 @app.route('/api/smazat-foto/<int:foto_id>', methods=['DELETE'])
