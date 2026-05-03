@@ -8,19 +8,24 @@
 </head>
 <body>
     <!-- GLOBÁLNÍ NAVBAR -->
-    <nav class="navbar">
-        <a href="{{ url_for('index') }}" class="navbar-logo">PyBox 📦</a>
-        <div class="navbar-links">
-            {% if session.get('user_id') %}
-                <span style="color: #9ca3af; font-size: 0.85rem; font-weight: bold;">👤 {{ session.get('user_jmeno') }}</span>
-                <a href="{{ url_for('moje_fotky') }}">Moje Galerie</a>
-                <button type="button" id="btn-odhlasit" class="btn btn-danger">Odhlásit se</button>
-            {% else %}
-                <a href="{{ url_for('prihlaseni') }}">Přihlásit</a>
-                <a href="{{ url_for('registrace') }}" class="btn btn-outline" style="padding: 6px 15px; border-width: 1px;">Registrace</a>
-            {% endif %}
-        </div>
-    </nav>
+ <nav class="navbar">
+    <a href="{{ url_for('index') }}" class="navbar-logo">PyBox 📦</a>
+    <div class="navbar-links">
+        {% if session.get('user_id') %}
+            <span style="color: #9ca3af; font-size: 0.85rem; font-weight: bold;">👤 {{ session.get('user_jmeno') }}</span>
+            
+            <a href="{{ url_for('muj_dicom') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' }}">
+                <i class="fas fa-x-ray"></i> DICOM snímky
+            </a>
+
+            <a href="{{ url_for('moje_fotky') }}">Fotky</a>
+            <button type="button" id="btn-odhlasit" class="btn btn-danger">Odhlásit se</button>
+        {% else %}
+            <a href="{{ url_for('prihlaseni') }}">Přihlásit</a>
+            <a href="{{ url_for('registrace') }}" class="btn btn-outline" style="padding: 6px 15px; border-width: 1px;">Registrace</a>
+        {% endif %}
+    </div>
+</nav>
 
     <div class="container">
         <!-- GLOBÁLNÍ FLASH ZPRÁVY -->

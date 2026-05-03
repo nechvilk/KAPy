@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     data.fotky.forEach(novaFotka => {
                         const kartaHTML = `
                             <div class="fotka-karta" id="fotka-karta-${novaFotka.id}">
-                                <img src="/uploads/${novaFotka.cesta_k_souboru}" alt="${novaFotka.nazev_souboru}">
+                                <img src="/uploads/fotky/${novaFotka.cesta_k_souboru}" alt="${novaFotka.nazev_souboru}">
                                 <p class="fotka-nazev" title="${novaFotka.nazev_souboru}">${novaFotka.nazev_souboru}</p>
                                 <p class="fotka-datum">${novaFotka.datum_nahrani}</p>
                                 <button type="button" class="btn btn-danger btn-smazat" data-id="${novaFotka.id}" style="width: 100%; padding: 8px; font-size: 0.85rem; margin-top: 10px;">Smazat</button>

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Můj DICOM | PyBox{% endblock %}
+
+{% block content %}
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']]
+    }
+  };
+</script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
+
+<div class="card">
+    <h2>Nahrát DICOM snímky 🏥</h2>
+    <p>Vyberte soubory *.dcm z vašeho zařízení.</p>
+    
+    <form id="dicom-upload-form" enctype="multipart/form-data">
+        <div style="margin-bottom: 25px;">
+            <input type="file" id="dicom-vstup" name="dicom_files" accept=".dcm" multiple required style="padding: 10px; border: 1px dashed #10b981; border-radius: 8px; width: 100%;">
+        </div>
+        
+        <div id="dicom-nahled-kontajner" style="display: none; margin-bottom: 20px; gap: 10px; flex-wrap: wrap;"></div>
+
+        <button type="button" id="tlacitko-nahrat-dicom" class="btn" style="width: 100%; background: #10b981;">Nahrát do archivu</button>
+        
+        <div id="dicom-progress-wrapper" style="display: none; margin-top: 20px;">
+            <div style="background: #e2e8f0; border-radius: 10px; height: 10px; width: 100%; overflow: hidden;">
+                <div id="dicom-progress-bar" style="background: #10b981; width: 0%; height: 100%; transition: width 0.2s ease;"></div>
+            </div>
+            <p id="dicom-progress-text" style="text-align: center; font-size: 0.8rem; margin-top: 5px; color: #64748b;">Nahrávám a analyzuji: 0%</p>
+        </div>
+    </form>
+</div>
+
+<div id="analyza-vysledky-karta" class="card" style="display: none; margin-top: 20px; border-left: 5px solid #3b82f6;">
+    <h3>📊 Výsledky DRL Analýzy</h3>
+    <div id="analyza-data" style="display: flex; justify-content: space-around; flex-wrap: wrap; margin-top: 15px;">
+        </div>
+</div>
+
+<div id="dicom-galerie-sekce" style="margin-top: 40px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+        <h2>DICOM archiv</h2>
+        <button type="button" id="btn-spustit-analyzu" class="btn" style="background: #3b82f6;" disabled>
+            Analyzovat vybrané (0)
+        </button>
+    </div>
+    
+    <div id="dicom-seznam" class="galerie-grid">
+        {% if not dicom_snimky %}
+            <p id="empty-message" style="text-align: center; color: #6b7280; background: #fff; padding: 40px; border-radius: 8px; grid-column: 1 / -1;">
+                V archivu nemáte žádné DICOM snímky.
+            </p>
+        {% else %}
+            {% for d in dicom_snimky %}
+                <div class="fotka-karta" id="dicom-karta-{{ d['id'] }}" style="display: flex; flex-direction: column; border: 1px solid #e2e8f0; background: #fff;">
+                    <div style="height: 200px; background: #000; display: flex; align-items: center; justify-content: center; border-radius: 8px 8px 0 0;">
+                        <img src="{{ url_for('dicom_nahled', filename=d['thumb_cesta']) }}" 
+                             alt="ID: {{ d['patient_id'] }} | {{ d['description'] or 'DICOM' }}" 
+                             style="max-height: 100%; max-width: 100%; object-fit: contain; cursor: pointer;">
+                    </div>
+                    
+                    <div style="padding: 15px; flex-grow: 1; display: flex; flex-direction: column; gap: 6px;">
+                        
+                        <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+                            <small style="color: #64748b; text-transform: uppercase; font-size: 0.6rem; font-weight: 800;">Lokalita</small>
+                            <div style="font-weight: 600; color: #1e293b;">{{ d['description'] or 'RTG Snímek' }}</div>
+                        </div>
+
+                        <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+                            <small style="color: #64748b; text-transform: uppercase; font-size: 0.6rem; font-weight: 800;">Datum vyšetření</small>
+                            <div style="color: #334155;">{{ d['study_date'] or '---' }}</div>
+                        </div>
+
+                        <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+                            <small style="color: #64748b; text-transform: uppercase; font-size: 0.6rem; font-weight: 800;">ID Pacienta</small>
+                            <div style="font-family: 'Courier New', monospace; color: #334155;">{{ d['patient_id'] or 'N/A' }}</div>
+                        </div>
+
+                        <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+                            <small style="color: #64748b; text-transform: uppercase; font-size: 0.6rem; font-weight: 800;">Pohlaví / Váha</small>
+                            <div style="color: #334155;">{{ d['sex'] or '---' }} • {{ d['weight'] }} kg</div>
+                        </div>
+
+                        <div style="margin-top: 10px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; text-align: center;">
+                            <small style="color: #475569; text-transform: uppercase; font-size: 0.6rem; font-weight: 800; display: block;">KAP (Dose Area Product)</small>
+                            <strong style="color: #2563eb; display: flex; align-items: baseline; justify-content: center; gap: 5px;">
+                                <span style="font-size: 1.5rem;">{{ d['kap'] }}</span>
+                                <span style="font-size: 0.9rem; color: #64748b;">$mGy \cdot cm^2$</span>
+                            </strong>
+                        </div>
+                    </div>
+
+                    <div style="padding: 12px; background: #f1f5f9; border-top: 1px solid #e2e8f0;">
+                        <label style="cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px;">
+                            <input type="checkbox" class="dicom-checkbox" value="{{ d['id'] }}" style="width: 18px; height: 18px;">
+                            <span style="font-weight: 600; color: #475569; font-size: 0.85rem;">Vybrat pro analýzu</span>
+                        </label>
+                        <button type="button" class="btn btn-danger btn-smazat-dicom" data-id="{{ d['id'] }}" style="width: 100%; padding: 8px; font-size: 0.8rem;">Smazat</button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Sjednocený Modal pro DICOM -->
+<div id="dicom-modal" class="modal">
+    <!-- Křížek pro zavření -->
+    <span id="dicom-btn-zavrit" class="modal-zavrit">&times;</span>
+    
+    <!-- Obrázek -->
+    <img id="dicom-modal-img" class="modal-obsah" src="">
+    
+    <!-- Popisek -->
+    <div id="dicom-modal-popisek" id="modal-popisek"></div>
+    
+    <!-- Šipky -->
+    <span id="dicom-btn-leva" class="sipka predchozi">&#10094;</span>
+    <span id="dicom-btn-prava" class="sipka dalsi">&#10095;</span>
+</div>
+
+<script src="{{ url_for('static', filename='js/dicom_script.js') }}"></script>
+{% endblock %}

@@ -3,7 +3,7 @@
 
 {% block content %}
     <div class="card">
-        <h2>Nahrát nové fotky 📸</h2>
+        <h2>Nahrát fotky 📸</h2>
         <p>Vyberte obrázky z vašeho zařízení.</p>
         
         <form id="upload-form" enctype="multipart/form-data">
@@ -26,13 +26,13 @@
     </div>
 
     <div id="galerie-kontejner" style="margin-top: 40px;">
-        <h2 style="text-align: center; margin-bottom: 20px;">Vaše galerie 🖼️</h2>
+        <h2 style="text-align: center; margin-bottom: 20px;">Galerie 🖼️</h2>
         
         {% if fotky %}
             <div class="galerie-grid">
                 {% for fotka in fotky %}
                     <div class="fotka-karta" id="fotka-karta-{{ fotka['id'] }}">
-                        <img src="{{ url_for('nahrany_soubor', filename=fotka['cesta_k_souboru']) }}" alt="{{ fotka['nazev_souboru'] }}">
+                        <img src="{{ url_for('nahrana_fotka', filename=fotka['cesta_k_souboru']) }}" alt="{{ fotka['nazev_souboru'] }}">
                         <p class="fotka-nazev" title="{{ fotka['nazev_souboru'] }}">{{ fotka['nazev_souboru'] }}</p>
                         <p class="fotka-datum">{{ fotka['datum_nahrani'] }}</p>
                         

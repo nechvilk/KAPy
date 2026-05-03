@@ -9,13 +9,26 @@ from werkzeug.utils import secure_filename
 import os
 import secrets
 import string
+from dicom_logic import get_drl_metadata, generate_thumb
+import pandas as pd
+import io
+import csv
 
 # Definice povolených souborů
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif'}
 # Cesta, kam se budou fotky fyzicky ukládat (relativně k app.py)
-UPLOAD_FOLDER = 'uploads'
-# Ujistíme se, že složka existuje
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# --- KONFIGURACE CEST ---
+UPLOAD_ROOT = 'uploads'
+FOTKY_FOLDER = os.path.join(UPLOAD_ROOT, 'fotky')
+DICOM_RAW_FOLDER = os.path.join(UPLOAD_ROOT, 'dicom_originaly')
+DICOM_THUMB_FOLDER = os.path.join(UPLOAD_ROOT, 'dicom_nahledy')
+
+# Automatické vytvoření struktury při startu
+for slozka in [FOTKY_FOLDER, DICOM_RAW_FOLDER, DICOM_THUMB_FOLDER]:
+    os.makedirs(slozka, exist_ok=True)
+
+
 
 # Načteme proměnné ze souboru .env
 load_dotenv()
@@ -223,10 +236,17 @@ def moje_fotky():
     return render_template('moje_fotky.html', fotky=nahrane_fotky)
 
 # --- ROUTA PRO POSKYTNUTÍ OBRÁZKU PROHLÍŽEČI ---
-@app.route('/uploads/<filename>')
-def nahrany_soubor(filename):
-    # Vezme soubor ze složky 'uploads' a pošle ho jako obrázek do HTML
-    return send_from_directory(UPLOAD_FOLDER, filename)
+
+# --- ROUTA PRO FOTKY Z GALERIE ---
+@app.route('/uploads/fotky/<filename>')
+def nahrana_fotka(filename):
+    return send_from_directory(FOTKY_FOLDER, filename)
+
+# --- ROUTA PRO DICOM NÁHLEDY (PNG) ---
+@app.route('/uploads/dicom-nahled/<filename>')
+def dicom_nahled(filename):
+    return send_from_directory(DICOM_THUMB_FOLDER, filename)
+
 
 # --- ROUTA PRO UPLOAD ---
 @app.route('/api/nahrat-foto', methods=['POST'])
@@ -262,7 +282,7 @@ def api_nahrat_foto():
                 cas_string = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                 novy_nazev = f"{jmeno}_{uzivatel_id}_{cas_string}{pripona}"
                 
-                cesta_na_disk = os.path.join(UPLOAD_FOLDER, novy_nazev)
+                cesta_na_disk = os.path.join(FOTKY_FOLDER, novy_nazev)
                 soubor.save(cesta_na_disk)
 
                 cursor.execute(
@@ -314,7 +334,7 @@ def api_smazat_foto(foto_id):
 
         if vysledek:
             nazev_souboru_na_disku = vysledek[0]
-            absolutni_cesta = os.path.join(UPLOAD_FOLDER, nazev_souboru_na_disku)
+            absolutni_cesta = os.path.join(FOTKY_FOLDER, nazev_souboru_na_disku)
 
             # 3. Smazání souboru z disku (pokud existuje)
             if os.path.exists(absolutni_cesta):
@@ -330,6 +350,154 @@ def api_smazat_foto(foto_id):
     except Exception as e:
         conn.rollback()
         return jsonify({"status": "error", "zprava": f"Chyba při mazání: {e}"}), 500
+    finally:
+        conn.close()
+
+# --- ROUTA PRO ZOBRAZENÍ DICOM ARCHIVU (muj_dicom.html) ---
+@app.route('/muj-dicom')
+def muj_dicom():
+    uzivatel_id = session.get('user_id')
+    if not uzivatel_id:
+        flash("Pro přístup k DICOM archivu se musíte přihlásit. 🔒")
+        return redirect(url_for('prihlaseni'))
+    
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Načteme všechny DICOM snímky uživatele
+    cursor.execute(
+        "SELECT * FROM dicom_snimky WHERE uzivatel_id = ? ORDER BY datum_nahrani DESC",
+        (uzivatel_id,)
+    )
+    snimky = cursor.fetchall()
+    conn.close()
+
+    return render_template('muj_dicom.html', dicom_snimky=snimky)
+
+# --- API PRO NAHRÁNÍ A EXTRAKCI METADAT ---
+@app.route('/api/nahrat-dicom', methods=['POST'])
+def api_nahrat_dicom():
+    uzivatel_id = session.get('user_id')
+    if not uzivatel_id:
+        return jsonify({"status": "error", "zprava": "Nepřihlášený uživatel."}), 401
+
+    soubory = request.files.getlist('dicom_files')
+    if not soubory or soubory[0].filename == '':
+        return jsonify({"status": "error", "zprava": "Žádné soubory k nahrání."}), 400
+
+    uspesne = 0
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        for soubor in soubory:
+            bezpecny_nazev = secure_filename(soubor.filename)
+            cas_prefix = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            unikatni_nazev = f"{cas_prefix}_{uzivatel_id}_{bezpecny_nazev}"
+            cesta_dcm = os.path.join(DICOM_RAW_FOLDER, unikatni_nazev)
+            
+            # 1. Uložit fyzický soubor
+            soubor.save(cesta_dcm)
+
+            # 2. Extrahovat metadata pomocí dicom_logic
+            meta = get_drl_metadata(cesta_dcm)
+            
+            # 3. Vygenerovat PNG náhled
+            thumb_nazev = f"thumb_{unikatni_nazev}.png"
+            generate_thumb(cesta_dcm, DICOM_THUMB_FOLDER, thumb_nazev)
+
+            # 4. Zápis do tvé nové SQL tabulky
+            cursor.execute('''
+                INSERT INTO dicom_snimky (
+                    nazev_souboru, cesta_k_souboru, thumb_cesta, uzivatel_id, datum_nahrani,
+                    patient_id, study_date, weight, kap, description, sex
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                soubor.filename, unikatni_nazev, thumb_nazev, uzivatel_id, 
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                meta.get('PatientID'), meta.get('StudyDate'), meta.get('Weight'),
+                meta.get('KAP'), meta.get('StudyDescription'), meta.get('PatientSex')
+            ))
+            uspesne += 1
+
+        conn.commit()
+        return jsonify({"status": "success", "zprava": f"Nahráno a analyzováno {uspesne} souborů."})
+
+    except Exception as e:
+        return jsonify({"status": "error", "zprava": f"Chyba: {str(e)}"}), 500
+    finally:
+        conn.close()
+
+# --- API PRO VÝPOČET STATISTIK Z VYBRANÝCH SOUBORŮ ---
+@app.route('/api/analyzovat-vyber', methods=['POST'])
+def api_analyzovat_vyber():
+    data = request.get_json()
+    ids = data.get('ids', []) # Seznam ID, které uživatel zaškrtal
+
+    if not ids:
+        return jsonify({"status": "error", "zprava": "Nebyly vybrány žádné snímky."}), 400
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    # Bezpečné načtení vybraných ID pro daného uživatele
+    dotaz = f"SELECT kap, weight FROM dicom_snimky WHERE id IN ({','.join(['?']*len(ids))}) AND uzivatel_id = ?"
+    cursor.execute(dotaz, ids + [session.get('user_id')])
+    vysledky = cursor.fetchall()
+    conn.close()
+
+    if not vysledky:
+        return jsonify({"status": "error", "zprava": "Data nenalezena."}), 404
+
+    # Výpočet jednoduchých statistik (KAP)
+    hodnoty_kap = [float(r['kap']) for r in vysledky if r['kap'] and r['kap'] != 'N/A']
+    
+    if not hodnoty_kap:
+        return jsonify({"status": "error", "zprava": "Vybrané snímky neobsahují validní KAP data."}), 400
+
+    statistiky = {
+        "pocet": len(hodnoty_kap),
+        "prumer": round(sum(hodnoty_kap) / len(hodnoty_kap), 2),
+        "max": max(hodnoty_kap),
+        "min": min(hodnoty_kap)
+    }
+
+    return jsonify({"status": "success", "data": statistiky})
+
+# --- API ROUTA PRO SMAZÁNÍ DICOMU (AJAX) ---
+@app.route('/api/smazat-dicom/<int:dicom_id>', methods=['DELETE'])
+def api_smazat_dicom(dicom_id):
+    uzivatel_id = session.get('user_id')
+    if not uzivatel_id:
+        return jsonify({"status": "error", "zprava": "Neautorizováno! 🔒"}), 401
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT cesta_k_souboru, thumb_cesta FROM dicom_snimky WHERE id = ? AND uzivatel_id = ?", (dicom_id, uzivatel_id))
+        vysledek = cursor.fetchone()
+
+        if vysledek:
+            raw_cesta = os.path.join(DICOM_RAW_FOLDER, vysledek[0])
+            thumb_cesta = os.path.join(DICOM_THUMB_FOLDER, vysledek[1])
+
+            # Smažeme fyzické soubory (originál i náhled)
+            if os.path.exists(raw_cesta): os.remove(raw_cesta)
+            if os.path.exists(thumb_cesta): os.remove(thumb_cesta)
+
+            # Smažeme z DB
+            cursor.execute("DELETE FROM dicom_snimky WHERE id = ? AND uzivatel_id = ?", (dicom_id, uzivatel_id))
+            conn.commit()
+            return jsonify({"status": "success", "zprava": "DICOM byl úspěšně smazán. 🗑️"})
+        else:
+            return jsonify({"status": "error", "zprava": "Soubor nenalezen."}), 404
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"status": "error", "zprava": f"Chyba: {e}"}), 500
     finally:
         conn.close()
 
