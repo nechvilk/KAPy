@@ -54,16 +54,28 @@ def get_drl_metadata(path):
                     kap = round(float(val) * 100.0, 2)
                 except (ValueError, TypeError):
                     kap = "N/A"
+                    
+        # 4. Údaje o přístroji a pracovišti
+        manufacturer = _get_dicom_value(ds, 'Manufacturer', 'N/A')
+        model_name = _get_dicom_value(ds, 'ManufacturerModelName', 'N/A')
+        institution_name = _get_dicom_value(ds, 'InstitutionName', 'N/A')
+        department_name = _get_dicom_value(ds, 'InstitutionalDepartmentName', 'N/A')
+        station_name = _get_dicom_value(ds, 'StationName', 'N/A')
 
         return {
             "path": str(path_obj),
             "filename": path_obj.name,
             "PatientID": patient_id,
-            "PatientSex": sex, # Změněno na PatientSex, aby to sedělo na tvůj INSERT v app.py
+            "PatientSex": sex, 
             "Weight": weight,
             "KAP": kap,
             "StudyDescription": study_desc,
-            "StudyDate": study_date
+            "StudyDate": study_date,
+            "Manufacturer": manufacturer,
+            "ManufacturerModelName": model_name,
+            "InstitutionName": institution_name,
+            "InstitutionalDepartmentName": department_name,
+            "StationName": station_name
         }
     except Exception as e:
         # Pokud je cesta string, i tak se pokusíme vrátit jméno souboru přes os.path

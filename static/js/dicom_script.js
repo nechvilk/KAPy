@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const aktivniSoubory = dicomSouboryProUpload.filter(polozka => polozka.aktivni).map(p => p.file);
             
             if (aktivniSoubory.length === 0) {
-                showToast("Nemáte vybrané žádné soubory k nahrání! 📁", "warning");
+                showToast("❌ Nemáte vybrané žádné soubory k nahrání!", "error");
                 return;
             }
 
@@ -199,11 +199,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 const result = await response.json();
-
+                
                 if (response.ok) {
                     const stat = result.data;
                     analyzaKarta.style.display = "block";
-                    analyzaData.innerHTML = `
+                    
+                    // Základní zobrazení pro KAP a počet snímků
+                    let htmlObsah = `
                         <div style="text-align: center; padding: 10px;">
                             <div style="font-size: 2rem; font-weight: bold; color: #3b82f6;">${stat.pocet}</div>
                             <div style="color: #64748b; font-size: 0.9rem;">Snímků</div>
@@ -217,6 +219,19 @@ document.addEventListener("DOMContentLoaded", () => {
                             <div style="color: #64748b; font-size: 0.9rem;">Max KAP</div>
                         </div>
                     `;
+
+                    // Dynamické přidání bloku pro průměrnou hmotnost
+                    if (stat.hmotnost_prumer !== "N/A") {
+                        htmlObsah += `
+                        <div style="text-align: center; padding: 10px; border-left: 1px solid #e2e8f0;">
+                            <div style="font-size: 2rem; font-weight: bold; color: #f59e0b;">${stat.hmotnost_prumer}</div>
+                            <div style="color: #64748b; font-size: 0.9rem;">Prům. hmotnost (kg)</div>
+                        </div>
+                        `;
+                    }
+
+                    analyzaData.innerHTML = htmlObsah;
+                    
                     showToast("Analýza byla úspěšně dokončena.", "success");
                     analyzaKarta.scrollIntoView({ behavior: 'smooth' });
                 } else {

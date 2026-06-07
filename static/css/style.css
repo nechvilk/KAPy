@@ -351,3 +351,18 @@ input:focus {
 .sipka:hover {
     color: #3b82f6; /* Zmodrá při najetí myší */
 }
+
+/* Specifický styl pro tlačítko analýzy, když je vypnuté */
+#btn-spustit-analyzu:disabled {
+    background-color: #e5e7eb !important; /* Světle šedá */
+    border-color: #d1d5db !important;      /* Šedý okraj */
+    color: #9ca3af !important;             /* Šedý text */
+    cursor: not-allowed;                   /* Kurzor "zakázáno" */
+    transform: none;                       /* Žádný pohyb při kliknutí */
+    box-shadow: none;                      /* Žádný stín */
+}
+
+/* Jemný přechod barev, aby to nebyl blikanec */
+#btn-spustit-analyzu {
+    transition: all 0.3s ease;
+}

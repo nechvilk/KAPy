@@ -30,7 +30,7 @@ def inicializuj_databazi(path):
     )
     ''')
 
-    # 3. NOVÁ Tabulka pro DICOM snímky
+    # 3. UPRAVENÁ Tabulka pro DICOM snímky
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS dicom_snimky (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,7 +40,7 @@ def inicializuj_databazi(path):
         uzivatel_id INTEGER,
         datum_nahrani TEXT,
         
-        -- DRL Metadata specifická pro DICOM
+        -- Původní DRL Metadata specifická pro DICOM
         patient_id TEXT,
         study_date TEXT,
         weight TEXT,
@@ -48,10 +48,43 @@ def inicializuj_databazi(path):
         description TEXT,
         sex TEXT,
         
+        -- NOVÁ Metadata: Přístroj a pracoviště
+        manufacturer TEXT,
+        model_name TEXT,
+        institution_name TEXT,
+        department_name TEXT,
+        station_name TEXT,
+        
         FOREIGN KEY (uzivatel_id) REFERENCES uzivatele(id)
     )
     ''')
 
+    # ---------------------------------------------------------
+    # MIGRACE: Přidání nových sloupců do existující databáze
+    # ---------------------------------------------------------
+    # Načteme seznam všech existujících sloupců v tabulce dicom_snimky
+    cursor.execute("PRAGMA table_info(dicom_snimky)")
+    existujici_sloupce = [column[1] for column in cursor.fetchall()]
+
+    # Seznam nových sloupců, které chceme zkontrolovat/přidat
+    nove_sloupce = {
+        'manufacturer': 'TEXT',
+        'model_name': 'TEXT',
+        'institution_name': 'TEXT',
+        'department_name': 'TEXT',
+        'station_name': 'TEXT'
+    }
+
+    # Pokud některý nový sloupec chybí, přidáme ho
+    for nazev_sloupce, datovy_typ in nove_sloupce.items():
+        if nazev_sloupce not in existujici_sloupce:
+            cursor.execute(f"ALTER TABLE dicom_snimky ADD COLUMN {nazev_sloupce} {datovy_typ}")
+            print(f"Byl přidán nový sloupec: {nazev_sloupce}")
+
     connection.commit()
     connection.close()
     print(f"Databáze a tabulky byly vytvořeny/aktualizovány v: {path} ✅")
+
+# Pokud byste chtěli skript spouštět i samostatně:
+if __name__ == "__main__":
+    inicializuj_databazi("moje_data.db") # Změňte na název vaší DB

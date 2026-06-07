@@ -44,12 +44,9 @@ db_path = os.path.join(app.instance_path, os.getenv('DATABASE_NAME', 'moje_data.
 # Zajistíme, aby složka instance existovala (vytvoří se při prvním spuštění)
 os.makedirs(app.instance_path, exist_ok=True)
 
-# AUTOMATICKÉ SPUŠTĚNÍ SKRIPTU
-if not os.path.exists(db_path):
-    print("Databáze nenalezena, vytvářím novou...")
-    inicializuj_databazi(db_path)
-else:
-    print(f"Databáze nalezena zde: {db_path}")
+# AUTOMATICKÁ KONTROLA A AKTUALIZACE DATABÁZE
+print(f"Kontroluji (aktualizuji) strukturu databáze: {db_path}")
+inicializuj_databazi(db_path)
 
 @app.route("/")
 def index():
@@ -407,17 +404,21 @@ def api_nahrat_dicom():
             thumb_nazev = f"thumb_{unikatni_nazev}.png"
             generate_thumb(cesta_dcm, DICOM_THUMB_FOLDER, thumb_nazev)
 
-            # 4. Zápis do tvé nové SQL tabulky
+            # 4. Zápis do SQL tabulky - PŘIDÁNA NOVÁ METADATA
             cursor.execute('''
                 INSERT INTO dicom_snimky (
                     nazev_souboru, cesta_k_souboru, thumb_cesta, uzivatel_id, datum_nahrani,
-                    patient_id, study_date, weight, kap, description, sex
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    patient_id, study_date, weight, kap, description, sex,
+                    manufacturer, model_name, institution_name, department_name, station_name
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 soubor.filename, unikatni_nazev, thumb_nazev, uzivatel_id, 
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 meta.get('PatientID'), meta.get('StudyDate'), meta.get('Weight'),
-                meta.get('KAP'), meta.get('StudyDescription'), meta.get('PatientSex')
+                meta.get('KAP'), meta.get('StudyDescription'), meta.get('PatientSex'),
+                meta.get('Manufacturer'), meta.get('ManufacturerModelName'),
+                meta.get('InstitutionName'), meta.get('InstitutionalDepartmentName'),
+                meta.get('StationName')
             ))
             uspesne += 1
 
@@ -451,18 +452,52 @@ def api_analyzovat_vyber():
     if not vysledky:
         return jsonify({"status": "error", "zprava": "Data nenalezena."}), 404
 
-    # Výpočet jednoduchých statistik (KAP)
-    hodnoty_kap = [float(r['kap']) for r in vysledky if r['kap'] and r['kap'] != 'N/A']
-    
-    if not hodnoty_kap:
-        return jsonify({"status": "error", "zprava": "Vybrané snímky neobsahují validní KAP data."}), 400
+    # Převedení dat na číselné hodnoty s ochranou proti chybám formátu
+    hodnoty_kap = []
+    hodnoty_hmotnost = []
 
-    statistiky = {
-        "pocet": len(hodnoty_kap),
-        "prumer": round(sum(hodnoty_kap) / len(hodnoty_kap), 2),
-        "max": max(hodnoty_kap),
-        "min": min(hodnoty_kap)
-    }
+    for r in vysledky:
+        # Extrakce KAP
+        kap_val = r['kap']
+        if kap_val and kap_val != 'N/A':
+            try:
+                hodnoty_kap.append(float(kap_val))
+            except ValueError:
+                pass  # Ignorujeme nečíselné hodnoty
+
+        # Extrakce Hmotnosti
+        weight_val = r['weight']
+        if weight_val and weight_val != 'N/A':
+            try:
+                hodnoty_hmotnost.append(float(weight_val))
+            except ValueError:
+                pass  # Ignorujeme nečíselné hodnoty
+
+    if not hodnoty_kap and not hodnoty_hmotnost:
+        return jsonify({"status": "error", "zprava": "Vybrané snímky neobsahují validní data pro KAP ani hmotnost."}), 400
+
+    # Sestavení slovníku se statistikami
+    statistiky = {}
+
+    # Původní výpočet KAP
+    if hodnoty_kap:
+        statistiky["pocet"] = len(hodnoty_kap)
+        statistiky["prumer"] = round(sum(hodnoty_kap) / len(hodnoty_kap), 2)
+        statistiky["max"] = max(hodnoty_kap)
+        statistiky["min"] = min(hodnoty_kap)
+    else:
+        statistiky["pocet"] = 0
+        statistiky["prumer"] = statistiky["max"] = statistiky["min"] = "N/A"
+
+    # NOVÝ VÝPOČET HMOTNOSTI
+    if hodnoty_hmotnost:
+        statistiky["hmotnost_pocet"] = len(hodnoty_hmotnost)
+        statistiky["hmotnost_prumer"] = round(sum(hodnoty_hmotnost) / len(hodnoty_hmotnost), 2)
+        statistiky["hmotnost_max"] = round(max(hodnoty_hmotnost), 2)
+        statistiky["hmotnost_min"] = round(min(hodnoty_hmotnost), 2)
+    else:
+        statistiky["hmotnost_pocet"] = 0
+        statistiky["hmotnost_prumer"] = statistiky["hmotnost_max"] = statistiky["hmotnost_min"] = "N/A"
 
     return jsonify({"status": "success", "data": statistiky})
 
