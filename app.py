@@ -350,6 +350,36 @@ def api_smazat_foto(foto_id):
     finally:
         conn.close()
 
+# --- ROUTA PRO STAŽENÍ FOTKY ---
+@app.route('/stahnout-foto/<int:foto_id>')
+def stahnout_foto(foto_id):
+    # 1. Kontrola, zda je uživatel přihlášen
+    uzivatel_id = session.get('user_id')
+    if not uzivatel_id:
+        flash("Pro stahování souborů se musíte přihlásit. 🔒")
+        return redirect(url_for('prihlaseni'))
+
+    # 2. Najdeme soubor v databázi
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Přidali jsme do výběru i 'nazev_souboru', což je ten původní hezký název
+    cursor.execute("SELECT cesta_k_souboru, nazev_souboru FROM fotky WHERE id = ? AND uzivatel_id = ?", (foto_id, uzivatel_id))
+    vysledek = cursor.fetchone()
+    conn.close()
+
+    # 3. Pokud záznam existuje, pošleme fotku ke stažení
+    if vysledek:
+        nazev_souboru_na_disku = vysledek[0]
+        puvodni_nazev = vysledek[1] # Vytáhneme původní název z databáze
+        
+        # Přidán parametr download_name, aby se fotka stáhla pod původním jménem!
+        return send_from_directory(FOTKY_FOLDER, nazev_souboru_na_disku, as_attachment=True, download_name=puvodni_nazev)
+    else:
+        # Pokud soubor neexistuje nebo patří někomu jinému
+        flash("Fotka nebyla nalezena nebo k ní nemáte přístup. 🚫")
+        return redirect(url_for('moje_fotky'))
+
 # --- ROUTA PRO ZOBRAZENÍ DICOM ARCHIVU (muj_dicom.html) ---
 @app.route('/muj-dicom')
 def muj_dicom():
@@ -535,6 +565,35 @@ def api_smazat_dicom(dicom_id):
         return jsonify({"status": "error", "zprava": f"Chyba: {e}"}), 500
     finally:
         conn.close()
+
+# --- ROUTA PRO STAŽENÍ PŮVODNÍHO DICOM SOUBORU ---
+@app.route('/stahnout-dicom/<int:dicom_id>')
+def stahnout_dicom(dicom_id):
+    # 1. Kontrola, zda je uživatel přihlášen
+    uzivatel_id = session.get('user_id')
+    if not uzivatel_id:
+        flash("Pro stahování souborů se musíte přihlásit. 🔒")
+        return redirect(url_for('prihlaseni'))
+
+    # 2. Najdeme soubor v databázi
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT cesta_k_souboru, nazev_souboru FROM dicom_snimky WHERE id = ? AND uzivatel_id = ?", (dicom_id, uzivatel_id))
+    vysledek = cursor.fetchone()
+    conn.close()
+
+    # 3. Pokud záznam existuje, pošleme soubor uživateli
+    if vysledek:
+        unikatni_cesta = vysledek[0]  # Ten dlouhý název s čísly a hashem, jak to leží na disku
+        puvodni_nazev = vysledek[1]   # Původní čistý název, jak ho uživatel nahrál
+
+        # as_attachment=True říká prohlížeči, ať soubor stáhne a neotvírá ho
+        # download_name zajistí, že se soubor stáhne pod původním hezkým názvem!
+        return send_from_directory(DICOM_RAW_FOLDER, unikatni_cesta, as_attachment=True, download_name=puvodni_nazev)
+    else:
+        # Pokud se někdo pokusí stáhnout soubor, který neexistuje nebo není jeho
+        flash("Soubor nenalezen nebo k němu nemáte přístup. 🚫")
+        return redirect(url_for('muj_dicom'))
 
 # --- API ROUTA PRO ODHLÁŠENÍ (AJAX) ---
 @app.route('/api/odhlaseni', methods=['POST'])

@@ -13,7 +13,9 @@
             
             <div id="nahled-kontajner" style="display: none; margin-bottom: 20px;"></div>
 
-            <button type="button" id="tlacitko-nahrat" class="btn" style="width: 100%;">Nahrát fotky</button>
+            <button type="button" id="tlacitko-nahrat" class="btn btn-success btn-block">
+                    Nahrát do galerie
+            </button>
             
             <div id="progress-wrapper" style="display: none; margin-top: 20px;">
                 <div style="background: #e2e8f0; border-radius: 10px; height: 10px; width: 100%; overflow: hidden;">
@@ -36,7 +38,26 @@
                         <p class="fotka-nazev" title="{{ fotka['nazev_souboru'] }}">{{ fotka['nazev_souboru'] }}</p>
                         <p class="fotka-datum">{{ fotka['datum_nahrani'] }}</p>
                         
-                        <button type="button" class="btn btn-danger btn-smazat" data-id="{{ fotka['id'] }}" style="width: 100%; padding: 8px; font-size: 0.85rem; margin-top: 10px;">Smazat</button>
+                        <div style="display: flex; border-top: 1px solid #e2e8f0; background: #f8fafc; border-radius: 0 0 8px 8px; overflow: hidden;">
+
+                            <a href="{{ url_for('stahnout_foto', foto_id=fotka['id']) }}" 
+                                title="Stáhnout fotku" 
+                                style="flex: 1; text-align: center; padding: 10px; text-decoration: none; font-size: 1.25rem; border-right: 1px solid #e2e8f0; transition: background 0.2s;" 
+                                onmouseover="this.style.background='#eff6ff'" 
+                                onmouseout="this.style.background='transparent'">
+                                💾 
+                            </a>
+
+                            <button type="button" 
+                                class="btn-smazat-foto" 
+                                data-id="{{ fotka['id'] }}" 
+                                title="Smazat fotku" 
+                                style="flex: 1; padding: 10px; background: transparent; border: none; font-size: 1.25rem; cursor: pointer; transition: background 0.2s;" 
+                                onmouseover="this.style.background='#fef2f2'" 
+                                onmouseout="this.style.background='transparent'">
+                                🗑️ 
+                            </button>
+                        </div>
                     </div>
                 {% endfor %}
             </div>

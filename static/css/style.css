@@ -64,13 +64,14 @@ h2 {
 .btn {
     display: inline-block;
     padding: 10px 20px;
-    background-color: #3b82f6;
+    background-color: #3b82f6; /* Výchozí modrá */
+    border: 2px solid #3b82f6; /* Výchozí modrý rám */
     color: #ffffff;
     text-decoration: none;
     border-radius: 8px;
     font-weight: 600;
-    transition: background-color 0.2s, transform 0.1s;
-    border: 2px solid #3b82f6;
+    text-align: center;         /* Zajistí vycentrování textu, pokud se tlačítko roztáhne */
+    transition: background-color 0.2s, border-color 0.2s, transform 0.1s;
     cursor: pointer;
 }
 
@@ -78,6 +79,17 @@ h2 {
     background-color: #2563eb;
     border-color: #2563eb;
     transform: translateY(-1px);
+}
+
+/* Globální efekt při kliknutí pro všechna tlačítka */
+.btn:active {
+    transform: translateY(0) scale(0.99);
+}
+
+/* Globální stav pro uzamčené tlačítko (při nahrávání) */
+.btn:disabled {
+    cursor: not-allowed;
+    transform: none !important;
 }
 
 .btn-outline {
@@ -90,6 +102,7 @@ h2 {
     color: #2563eb;
 }
 
+/* --- Červený modifikátor --- */
 .btn-danger {
     background-color: #ef4444;
     border-color: #ef4444;
@@ -98,6 +111,33 @@ h2 {
 .btn-danger:hover {
     background-color: #dc2626;
     border-color: #dc2626;
+}
+
+/* --- NOVÉ: Zelený modifikátor --- */
+.btn-success {
+    background-color: #10b981;
+    border-color: #10b981;
+}
+
+.btn-success:hover {
+    background-color: #059669;
+    border-color: #059669;
+}
+
+.btn-success:disabled {
+    background-color: #a7f3d0 !important;
+    border-color: #a7f3d0 !important;
+}
+
+/* --- NOVÉ: Pomocná třída pro roztažení tlačítka na 100% šířky --- */
+.btn-block {
+    display: block;
+    width: 100%;
+}
+
+/* Flash zprávy */
+.flash-messages {
+    margin-bottom: 20px;
 }
 
 /* Flash zprávy */
@@ -187,37 +227,64 @@ input:focus {
 }
 
 /* --- STYLY PRO TOAST NOTIFIKACE --- */
+/* 1. Hlavní kontejner pro všechny toasty */
 #toast-container {
     position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 9999;
+    bottom: 20px;         /* Vzdálenost od dolního okraje obrazovky */
+    right: 20px;          /* Vzdálenost od pravého okraje obrazovky */
+    z-index: 9999;        /* Zajistí, že toasty budou nad vším ostatním obsahy */
+    
+    display: flex;
+    flex-direction: column-reverse; /* Toasty se budou řadit pod sebe */
+    gap: 10px;            /* Mezera mezi jednotlivými toasty */
+    
+    /* KLÍČOVÁ VLASTNOST: Kontejner jako takový neblokuje klikání na stránce, 
+       pokud je zrovna prázdný */
+    pointer-events: none; 
 }
 
+/* 2. Styl pro samotnou notifikaci */
 .toast {
     min-width: 250px;
-    margin-bottom: 10px;
-    padding: 15px 20px;
+    max-width: 350px;
+    padding: 14px 20px;
     border-radius: 8px;
-    color: white;
-    font-weight: bold;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    line-height: 1.4;
+    
+    /* Povolíme klikání na samotný toast (např. pokud bys na něj chtěl kliknout) */
+    pointer-events: auto; 
+
+    /* Výchozí stav pro animaci: skrytý a odsunutý o 50px doprava mimo obrazovku */
     opacity: 0;
-    transform: translateX(100%);
-    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    transform: translateX(50px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
+/* 3. Stav, kdy JavaScript přidá třídu .show (přílet zprava) */
 .toast.show {
     opacity: 1;
     transform: translateX(0);
 }
 
-.toast-success { background-color: #10b981; } /* Zelená */
-.toast-error { background-color: #ef4444; }   /* Červená */
-.toast-info { background-color: #3b82f6; }    /* Modrá */
+/* 4. Barevné varianty podle typu zprávy */
+.toast-info {
+    background-color: #3b82f6; /* Příjemná modrá */
+    /* border-left: 5px solid #1d4ed8; */
+}
+
+.toast-success {
+    background-color: #10b981; /* Úspěšná zelená */
+    /* border-left: 5px solid #047857; */
+}
+
+.toast-error {
+    background-color: #ef4444; /* Varovná červená */
+    /* border-left: 5px solid #b91c1c; */
+}
 
 /* --- STYLY PRO NAVBAR --- */
 .navbar {
@@ -225,7 +292,7 @@ input:focus {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
     padding: 12px 30px;
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; /* Roztáhne levou a pravou stranu na kraje */
     align-items: center;
     position: fixed; /* Lišta zůstane nahoře i při rolování */
     top: 0;
@@ -234,24 +301,41 @@ input:focus {
     z-index: 1000;
 }
 
+/* Obal pro logo a menu - ZAJISTÍ, ŽE BUDOU V JEDNÉ ŘADĚ */
+.navbar-left {
+    display: flex;
+    align-items: center;
+    gap: 35px; /* Mezera mezi logem a začátkem menu */
+}
+
 .navbar-logo {
     font-size: 1.4rem;
     font-weight: bold;
     color: #111827;
     text-decoration: none;
     transition: transform 0.2s;
+    white-space: nowrap; /* Zabrání zalomení loga */
 }
 
 .navbar-logo:hover {
     transform: scale(1.05);
 }
 
+/* Kontejner pro tlačítka DICOM a Fotky */
+.navbar-menu {
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Mezera mezi samotnými tlačítky */
+}
+
+/* PRAVÁ STRANA: Uživatelské jméno a odhlášení */
 .navbar-links {
     display: flex;
     gap: 20px;
     align-items: center;
 }
 
+/* Odkazy na pravé straně (např. Přihlásit) */
 .navbar-links a {
     text-decoration: none;
     color: #4b5563;
@@ -259,12 +343,46 @@ input:focus {
     font-size: 0.95rem;
     transition: color 0.2s;
 }
-
 .navbar-links a:hover {
     color: #3b82f6;
 }
 
-/* Úprava tlačítek přímo v navbaru, aby nebyla tak obří */
+
+/* --- GRAFICKÁ TLAČÍTKA V MENU (DICOM, Fotky) --- */
+.navbar-menu a {
+    text-decoration: none;
+    color: #4b5563;
+    font-weight: 600;
+    font-size: 0.9rem;
+    
+    /* Vlastnosti, které z textu udělají "tlačítko" */
+    padding: 8px 16px;
+    background-color: #f8fafc;  /* Velmi světle šedý podklad */
+    border: 1px solid #e2e8f0;  /* Jemný rámeček, aby tlačítko mělo tvar */
+    border-radius: 6px;         /* Zaoblené rohy */
+    
+    display: inline-flex;       /* Zarovná ikonu a text vedle sebe */
+    align-items: center;
+    gap: 8px;                   /* Mezera mezi ikonou a textem uvnitř tlačítka */
+    transition: all 0.2s ease;
+}
+
+/* Stav při najetí myší na neaktivní tlačítko */
+.navbar-menu a:hover {
+    color: #1f2937;
+    background-color: #f1f5f9;  /* Trochu ztmavne podklad */
+    border-color: #cbd5e1;      /* Zvýrazní se rámeček */
+}
+
+/* AKTIVNÍ STAV - Stránka, na které uživatel právě stojí */
+.navbar-menu a.active {
+    color: #2563eb;             /* Výrazná modrá barva textu */
+    background-color: #dbeafe;  /* Krásné modré pozadí */
+    border-color: #bfdbfe;      /* Modrý rámeček */
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.05);
+}
+
+/* Globální úprava tlačítek v navbaru (např. Odhlásit se) */
 .navbar .btn {
     padding: 8px 16px;
     font-size: 0.9rem;

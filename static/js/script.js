@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 2. NAHRÁVÁNÍ FOTEK S PROGRESS BAREM ---
+// --- 2. NAHRÁVÁNÍ FOTEK S PROGRESS BAREM ---
     if (btnNahrat) {
         btnNahrat.addEventListener('click', () => {
             
@@ -193,12 +193,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     data.fotky.forEach(novaFotka => {
+                        // TADY JE TA ZMĚNA: Generujeme novou lištu s oběma velkými ikonami (Uložit i Smazat)
                         const kartaHTML = `
                             <div class="fotka-karta" id="fotka-karta-${novaFotka.id}">
                                 <img src="/uploads/fotky/${novaFotka.cesta_k_souboru}" alt="${novaFotka.nazev_souboru}">
                                 <p class="fotka-nazev" title="${novaFotka.nazev_souboru}">${novaFotka.nazev_souboru}</p>
                                 <p class="fotka-datum">${novaFotka.datum_nahrani}</p>
-                                <button type="button" class="btn btn-danger btn-smazat" data-id="${novaFotka.id}" style="width: 100%; padding: 8px; font-size: 0.85rem; margin-top: 10px;">Smazat</button>
+                                
+                                <div style="display: flex; border-top: 1px solid #e2e8f0; background: #f8fafc; border-radius: 0 0 8px 8px; overflow: hidden;">
+                                    
+                                    <a href="/stahnout-foto/${novaFotka.id}" 
+                                       title="Stáhnout fotku" 
+                                       style="flex: 1; text-align: center; padding: 10px; text-decoration: none; font-size: 1.25rem; border-right: 1px solid #e2e8f0; transition: background 0.2s;" 
+                                       onmouseover="this.style.background='#eff6ff'" 
+                                       onmouseout="this.style.background='transparent'">
+                                        💾 
+                                    </a>
+
+                                    <button type="button" 
+                                            class="btn-smazat-foto" 
+                                            data-id="${novaFotka.id}" 
+                                            title="Smazat fotku" 
+                                            style="flex: 1; padding: 10px; background: transparent; border: none; font-size: 1.25rem; cursor: pointer; transition: background 0.2s;" 
+                                            onmouseover="this.style.background='#fef2f2'" 
+                                            onmouseout="this.style.background='transparent'">
+                                        🗑️ 
+                                    </button>
+                                    
+                                </div>
                             </div>
                         `;
                         grid.insertAdjacentHTML('afterbegin', kartaHTML);
@@ -328,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Místo tlacitkaSmazat.forEach posloucháme kliknutí na celém dokumentu
     document.addEventListener('click', async (e) => {
         // Zkontrolujeme, zda to, na co se kliklo, je tlačítko "Smazat"
-        if (e.target && e.target.classList.contains('btn-smazat')) {
+        if (e.target && e.target.classList.contains('btn-smazat-foto')) {
             const tlacitko = e.target;
             const fotoId = tlacitko.getAttribute('data-id');
             

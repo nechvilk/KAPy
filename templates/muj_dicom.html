@@ -25,7 +25,9 @@
         
         <div id="dicom-nahled-kontajner" style="display: none; margin-bottom: 20px; gap: 10px; flex-wrap: wrap;"></div>
 
-        <button type="button" id="tlacitko-nahrat-dicom" class="btn" style="width: 100%; background: #10b981;">Nahrát do archivu</button>
+        <button type="button" id="tlacitko-nahrat-dicom" class="btn btn-success btn-block">
+            Nahrát do archivu
+        </button>
         
         <div id="dicom-progress-wrapper" style="display: none; margin-top: 20px;">
             <div style="background: #e2e8f0; border-radius: 10px; height: 10px; width: 100%; overflow: hidden;">
@@ -129,7 +131,7 @@
 
                         <!-- DÁVKA (KAP) -->
                         <div style="margin-top: 10px; background: #eff6ff; padding: 10px; border-radius: 6px; border: 1px solid #dbeafe; text-align: center;">
-                            <small style="color: #1e40af; text-transform: uppercase; font-size: 0.6rem; font-weight: 800; display: block;">KAP (Dose Area Product)</small>
+                            <small style="color: #1e40af; text-transform: uppercase; font-size: 0.6rem; font-weight: 800; display: block;">KAP (Kerma Area Product)</small>
                             <strong style="color: #2563eb; display: flex; align-items: baseline; justify-content: center; gap: 5px;">
                                 <span style="font-size: 1.5rem;">{{ d['kap'] }}</span>
                                 <span style="font-size: 0.9rem; color: #64748b;">$mGy \cdot cm^2$</span>
@@ -143,7 +145,26 @@
                             <input type="checkbox" class="dicom-checkbox" value="{{ d['id'] }}" style="width: 18px; height: 18px;">
                             <span style="font-weight: 600; color: #475569; font-size: 0.85rem;">Vybrat pro analýzu</span>
                         </label>
-                        <button type="button" class="btn btn-danger btn-smazat-dicom" data-id="{{ d['id'] }}" style="width: 100%; padding: 8px; font-size: 0.8rem;">Smazat</button>
+                            <div style="display: flex; border-top: 1px solid #e2e8f0; background: #f8fafc; border-radius: 0 0 8px 8px; overflow: hidden;">
+
+                                <a href="{{ url_for('stahnout_dicom', dicom_id=d['id']) }}" 
+                                   title="Stáhnout DICOM" 
+                                   style="flex: 1; text-align: center; padding: 10px; text-decoration: none; font-size: 1.25rem; border-right: 1px solid #e2e8f0; transition: background 0.2s;" 
+                                   onmouseover="this.style.background='#eff6ff'" 
+                                   onmouseout="this.style.background='transparent'">
+                                 💾 
+                                </a>
+
+                                <button type="button" 
+                                        class="btn-smazat-dicom" 
+                                        data-id="{{ d['id'] }}" 
+                                        title="Smazat DICOM" 
+                                        style="flex: 1; padding: 10px; background: transparent; border: none; font-size: 1.25rem; cursor: pointer; transition: background 0.2s;" 
+                                        onmouseover="this.style.background='#fef2f2'" 
+                                        onmouseout="this.style.background='transparent'">
+                                    🗑️ 
+                                </button>
+                            </div>
                     </div>
                 </div>
             {% endfor %}
