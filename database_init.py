@@ -39,6 +39,7 @@ def inicializuj_databazi(path):
         thumb_cesta TEXT,
         uzivatel_id INTEGER,
         datum_nahrani TEXT,
+        kategorie TEXT DEFAULT 'vse', -- NOVÝ SLOUPEC PRO TŘÍDĚNÍ
         
         -- Původní DRL Metadata specifická pro DICOM
         patient_id TEXT,
@@ -72,7 +73,8 @@ def inicializuj_databazi(path):
         'model_name': 'TEXT',
         'institution_name': 'TEXT',
         'department_name': 'TEXT',
-        'station_name': 'TEXT'
+        'station_name': 'TEXT',
+        'kategorie': 'TEXT' # PŘIDÁNO DO MIGRACE
     }
 
     # Pokud některý nový sloupec chybí, přidáme ho

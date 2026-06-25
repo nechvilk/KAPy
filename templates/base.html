@@ -7,17 +7,26 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <!-- GLOBÁLNÍ NAVBAR -->
- <nav class="navbar">
+    <nav class="navbar">
     
     <div class="navbar-left">
         <a href="{{ url_for('index') }}" class="navbar-logo">PyBox 📦</a>
         
         {% if session.get('user_id') %}
             <div class="navbar-menu">
-                <a href="{{ url_for('muj_dicom') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' }}">
-                    <i class="fas fa-x-ray"></i> DICOM snímky
-                </a>
+                <div class="navbar-dropdown">
+                    <a href="{{ url_for('muj_dicom', kategorie='vse') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' }}">
+                        <i class="fas fa-x-ray"></i> DICOM data ▾
+                    </a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('muj_dicom', kategorie='vse') }}">Nezařazeno</a>
+                        <a href="{{ url_for('muj_dicom', kategorie='hrudnik') }}">Hrudník</a>
+                        <a href="{{ url_for('muj_dicom', kategorie='pater_c') }}">C Páteř</a>
+                        <a href="{{ url_for('muj_dicom', kategorie='pater_th') }}">Th Páteř</a>
+                        <a href="{{ url_for('muj_dicom', kategorie='pater_ls') }}">LS Páteř</a>
+                    </div>
+                </div>
+
                 <a href="{{ url_for('moje_fotky') }}" class="{{ 'active' if request.endpoint == 'moje_fotky' }}">
                     Fotky
                 </a> 
@@ -38,7 +47,6 @@
 </nav>
 
     <div class="container">
-        <!-- GLOBÁLNÍ FLASH ZPRÁVY -->
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 <div class="flash-messages">
@@ -49,11 +57,9 @@
             {% endif %}
         {% endwith %}
 
-        <!-- TADY SE VYKRESLÍ OBSAH KONKRÉTNÍ STRÁNKY -->
         {% block content %}{% endblock %}
     </div>
 
-    <!-- GLOBÁLNÍ SKRIPTY -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

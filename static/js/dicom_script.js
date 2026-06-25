@@ -85,7 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-// --- 2. NAHRÁVÁNÍ NA SERVER S REÁLNÝM PROGRESS BAREM ---
+    // --- 2. NAHRÁVÁNÍ NA SERVER S REÁLNÝM PROGRESS BAREM ---
     const tlacitkoNahrat = document.getElementById("tlacitko-nahrat-dicom");
     const progressWrapper = document.getElementById("dicom-progress-wrapper");
     const progressBar = document.getElementById("dicom-progress-bar");
@@ -93,7 +93,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (tlacitkoNahrat) {
         tlacitkoNahrat.addEventListener("click", () => {
-            // Vyfiltrujeme pouze ty soubory, které uživatel nezašednul
             const aktivniSoubory = dicomSouboryProUpload.filter(polozka => polozka.aktivni).map(p => p.file);
             
             if (aktivniSoubory.length === 0) {
@@ -106,14 +105,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 formData.append("dicom_files", soubor);
             });
 
+            // --- DYNAMICKÁ DETEKCE KATEGORIE Z URL ADRESY ---
+            const cestaSegmenty = window.location.pathname.split('/').filter(p => p !== "");
+            let aktualniKategorie = "vse";
+            
+            // Hledáme segment za 'muj-dicom' (např. /muj-dicom/hlava -> index 'muj-dicom' je 0, hledáme prvek 1)
+            const indexDicom = cestaSegmenty.indexOf("muj-dicom");
+            if (indexDicom !== -1 && cestaSegmenty[indexDicom + 1]) {
+                aktualniKategorie = cestaSegmenty[indexDicom + 1];
+            }
+            
+            // Přibalíme zjištěnou kategorii do formuláře pro Flask backend
+            formData.append("kategorie", aktualniKategorie);
+            // ------------------------------------------------
+
             tlacitkoNahrat.disabled = true;
             progressWrapper.style.display = "block";
             
-            // Vytvoříme XMLHttpRequest pro sledování reálného uploadu
             const xhr = new XMLHttpRequest();
             xhr.open("POST", "/api/nahrat-dicom", true);
 
-            // Sledujeme průběh nahrávání
             xhr.upload.addEventListener("progress", (e) => {
                 if (e.lengthComputable) {
                     const procenta = Math.round((e.loaded / e.total) * 100);
@@ -127,15 +138,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            // Reakce po dokončení celého požadavku (včetně zpracování na serveru)
             xhr.onload = function() {
                 try {
                     const result = JSON.parse(xhr.responseText);
                     
-                    // xhr.status 200-299 znamená úspěch (záleží, co vrací tvůj backend)
                     if (xhr.status >= 200 && xhr.status < 300) {
                         progressBar.style.width = "100%";
-                        //progressText.innerText = "Hotovo! ✅";
                         showToast("Snímky byly úspěšně nahrány.", "success");
                         
                         setTimeout(() => {
@@ -153,14 +161,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             };
 
-            // Reakce na výpadek sítě / chybu spojení
             xhr.onerror = function() {
                 showToast("Došlo k chybě spojení se serverem.", "error");
                 tlacitkoNahrat.disabled = false;
                 progressWrapper.style.display = "none";
             };
 
-            // Odeslání požadavku
             xhr.send(formData);
         });
     }
@@ -204,7 +210,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     const stat = result.data;
                     analyzaKarta.style.display = "block";
                     
-                    // Základní zobrazení pro KAP a počet snímků
                     let htmlObsah = `
                         <div style="text-align: center; padding: 10px;">
                             <div style="font-size: 2rem; font-weight: bold; color: #3b82f6;">${stat.pocet}</div>
@@ -220,7 +225,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
                     `;
 
-                    // Dynamické přidání bloku pro průměrnou hmotnost
                     if (stat.hmotnost_prumer !== "N/A") {
                         htmlObsah += `
                         <div style="text-align: center; padding: 10px; border-left: 1px solid #e2e8f0;">
@@ -250,7 +254,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if(e.target && e.target.classList.contains("btn-smazat-dicom")) {
             const btn = e.target;
             
-            // Confirm vyskakovací okno u mazání si většinou necháváme jako bezpečnostní pojistku
             if (!confirm("Opravdu chcete tento DICOM záznam smazat?")) return;
             
             const dicomId = btn.getAttribute("data-id");
@@ -265,7 +268,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (response.ok) {
                     const karta = document.getElementById(`dicom-karta-${dicomId}`);
                     if (karta) {
-                        // Přidáme malý efekt zmizení před odstraněním
                         karta.style.opacity = '0';
                         setTimeout(() => karta.remove(), 300);
                     }
@@ -275,9 +277,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     setTimeout(() => {
                         const container = document.getElementById('dicom-seznam');
-                        const zbyvajiciKarty = container.querySelectorAll('.fotka-karta');
+                        const zbyvajiciKarty = container ? container.querySelectorAll('.fotka-karta') : [];
 
-                        if (zbyvajiciKarty.length === 0) {
+                        if (zbyvajiciKarty.length === 0 && container) {
                             container.innerHTML = `
                                 <p id="empty-message" style="text-align: center; color: #6b7280; background: #fff; padding: 40px; border-radius: 8px; grid-column: 1 / -1;">
                                     V archivu nemáte žádné DICOM snímky.
@@ -298,7 +300,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-// --- 5. ZVĚTŠENÍ DICOM NÁHLEDU (Sjednocená verze) ---
+    // --- 5. ZVĚTŠENÍ DICOM NÁHLEDU ---
     const dicomModal = document.getElementById('dicom-modal');
     const dicomModalImg = document.getElementById('dicom-modal-img');
     const dicomModalPopisek = document.getElementById('dicom-modal-popisek');
@@ -315,7 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function zobrazDicomFotku(index) {
         const fotky = getAktualniDicomFotky();
         if (fotky.length === 0) {
-            dicomModal.classList.remove('show');
+            if(dicomModal) dicomModal.classList.remove('show');
             return;
         }
 
@@ -323,8 +325,8 @@ document.addEventListener("DOMContentLoaded", () => {
         else if (index < 0) dicomAktualniIndex = fotky.length - 1;
         else dicomAktualniIndex = index;
 
-        dicomModalImg.src = fotky[dicomAktualniIndex].src;
-        dicomModalPopisek.textContent = fotky[dicomAktualniIndex].alt;
+        if(dicomModalImg) dicomModalImg.src = fotky[dicomAktualniIndex].src;
+        if(dicomModalPopisek) dicomModalPopisek.textContent = fotky[dicomAktualniIndex].alt;
     }
 
     if (dicomModal) {
@@ -334,23 +336,29 @@ document.addEventListener("DOMContentLoaded", () => {
                 dicomAktualniIndex = fotky.indexOf(e.target); 
                 
                 if (dicomAktualniIndex !== -1) {
-                    dicomModal.classList.add('show'); // Použití sjednocené třídy
+                    dicomModal.classList.add('show');
                     zobrazDicomFotku(dicomAktualniIndex);
                 }
             }
         });
 
-        dicomBtnLeva.addEventListener('click', (e) => {
-            e.stopPropagation(); 
-            zobrazDicomFotku(dicomAktualniIndex - 1);
-        });
+        if(dicomBtnLeva) {
+            dicomBtnLeva.addEventListener('click', (e) => {
+                e.stopPropagation(); 
+                zobrazDicomFotku(dicomAktualniIndex - 1);
+            });
+        }
 
-        dicomBtnPrava.addEventListener('click', (e) => {
-            e.stopPropagation();
-            zobrazDicomFotku(dicomAktualniIndex + 1);
-        });
+        if(dicomBtnPrava) {
+            dicomBtnPrava.addEventListener('click', (e) => {
+                e.stopPropagation();
+                zobrazDicomFotku(dicomAktualniIndex + 1);
+            });
+        }
 
-        dicomBtnZavrit.addEventListener('click', () => dicomModal.classList.remove('show'));
+        if(dicomBtnZavrit) {
+            dicomBtnZavrit.addEventListener('click', () => dicomModal.classList.remove('show'));
+        }
 
         dicomModal.addEventListener('click', (e) => {
             if (e.target === dicomModal) dicomModal.classList.remove('show');

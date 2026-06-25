@@ -381,8 +381,10 @@ def stahnout_foto(foto_id):
         return redirect(url_for('moje_fotky'))
 
 # --- ROUTA PRO ZOBRAZENÍ DICOM ARCHIVU (muj_dicom.html) ---
-@app.route('/muj-dicom')
-def muj_dicom():
+# Routa přijme volitelný parametr 'kategorie', výchozí je 'vse'
+@app.route('/muj-dicom', defaults={'kategorie': 'vse'})
+@app.route('/muj-dicom/<kategorie>')
+def muj_dicom(kategorie):
     uzivatel_id = session.get('user_id')
     if not uzivatel_id:
         flash("Pro přístup k DICOM archivu se musíte přihlásit. 🔒")
@@ -392,15 +394,23 @@ def muj_dicom():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    # Načteme všechny DICOM snímky uživatele
-    cursor.execute(
-        "SELECT * FROM dicom_snimky WHERE uzivatel_id = ? ORDER BY datum_nahrani DESC",
-        (uzivatel_id,)
-    )
+    # Rozhodnutí podle vybrané kategorie
+    if kategorie == 'vse':
+        cursor.execute(
+            "SELECT * FROM dicom_snimky WHERE uzivatel_id = ? ORDER BY datum_nahrani DESC",
+            (uzivatel_id,)
+        )
+    else:
+        cursor.execute(
+            "SELECT * FROM dicom_snimky WHERE uzivatel_id = ? AND kategorie = ? ORDER BY datum_nahrani DESC",
+            (uzivatel_id, kategorie)
+        )
+        
     snimky = cursor.fetchall()
     conn.close()
 
-    return render_template('muj_dicom.html', dicom_snimky=snimky)
+    # Do šablony pošleme i aktuální kategorii, abychom podle ní mohli upravit např. nadpis stránky
+    return render_template('muj_dicom.html', dicom_snimky=snimky, aktivni_kategorie=kategorie)
 
 # --- API PRO NAHRÁNÍ A EXTRAKCI METADAT ---
 @app.route('/api/nahrat-dicom', methods=['POST'])
@@ -410,6 +420,9 @@ def api_nahrat_dicom():
         return jsonify({"status": "error", "zprava": "Nepřihlášený uživatel."}), 401
 
     soubory = request.files.getlist('dicom_files')
+    # ZÍSKÁNÍ KATEGORIE Z FORM DATA (pokud není zadána, uloží se jako 'vse')
+    kategorie = request.form.get('kategorie', 'vse') 
+
     if not soubory or soubory[0].filename == '':
         return jsonify({"status": "error", "zprava": "Žádné soubory k nahrání."}), 400
 
@@ -424,26 +437,22 @@ def api_nahrat_dicom():
             unikatni_nazev = f"{cas_prefix}_{uzivatel_id}_{bezpecny_nazev}"
             cesta_dcm = os.path.join(DICOM_RAW_FOLDER, unikatni_nazev)
             
-            # 1. Uložit fyzický soubor
             soubor.save(cesta_dcm)
-
-            # 2. Extrahovat metadata pomocí dicom_logic
             meta = get_drl_metadata(cesta_dcm)
             
-            # 3. Vygenerovat PNG náhled
             thumb_nazev = f"thumb_{unikatni_nazev}.png"
             generate_thumb(cesta_dcm, DICOM_THUMB_FOLDER, thumb_nazev)
 
-            # 4. Zápis do SQL tabulky - PŘIDÁNA NOVÁ METADATA
+            # ÚPRAVA INSERT DOTAZU: Přidán sloupec 'kategorie'
             cursor.execute('''
                 INSERT INTO dicom_snimky (
-                    nazev_souboru, cesta_k_souboru, thumb_cesta, uzivatel_id, datum_nahrani,
+                    nazev_souboru, cesta_k_souboru, thumb_cesta, uzivatel_id, datum_nahrani, kategorie,
                     patient_id, study_date, weight, kap, description, sex,
                     manufacturer, model_name, institution_name, department_name, station_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 soubor.filename, unikatni_nazev, thumb_nazev, uzivatel_id, 
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"), kategorie,  # ZDE PŘIDÁNA PROMĚNNÁ
                 meta.get('PatientID'), meta.get('StudyDate'), meta.get('Weight'),
                 meta.get('KAP'), meta.get('StudyDescription'), meta.get('PatientSex'),
                 meta.get('Manufacturer'), meta.get('ManufacturerModelName'),
