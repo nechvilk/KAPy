@@ -18,12 +18,27 @@
                     <a href="{{ url_for('muj_dicom', kategorie='vse') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' }}">
                         <i class="fas fa-x-ray"></i> DICOM data ▾
                     </a>
-                    <div class="dropdown-content">
-                        <a href="{{ url_for('muj_dicom', kategorie='vse') }}">Nezařazeno</a>
-                        <a href="{{ url_for('muj_dicom', kategorie='hrudnik') }}">Hrudník</a>
-                        <a href="{{ url_for('muj_dicom', kategorie='pater_c') }}">C Páteř</a>
-                        <a href="{{ url_for('muj_dicom', kategorie='pater_th') }}">Th Páteř</a>
-                        <a href="{{ url_for('muj_dicom', kategorie='pater_ls') }}">LS Páteř</a>
+                    <div class="dropdown-content">                       
+                        <a href="{{ url_for('muj_dicom', kategorie='hrudnik') }}" 
+                           class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'hrudnik' }}">
+                           Hrudník
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='pater_c') }}" 
+                           class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'pater_c' }}">
+                           C Páteř
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='pater_th') }}" 
+                           class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'pater_th' }}">
+                           Th Páteř
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='pater_ls') }}" 
+                           class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'pater_ls' }}">
+                           LS Páteř
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='vse') }}" 
+                           class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'vse' }}">
+                           Všechny snímky
+                        </a>
                     </div>
                 </div>
 

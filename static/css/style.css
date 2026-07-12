@@ -520,3 +520,8 @@ input:focus {
 #btn-spustit-analyzu {
     transition: all 0.3s ease;
 }
+
+.justify-text {
+    text-align: justify;
+    hyphens: auto; /* Pro české texty je potřeba mít v HTML nastaven lang="cs" */
+}

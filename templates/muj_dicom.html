@@ -3,11 +3,11 @@
 
 {% block content %}
 {% set nazvy_kategorii = {
-    'vse': 'Nezařazeno',
     'hrudnik': 'Hrudník',
     'pater_c': 'C Páteř',
     'pater_th': 'Th Páteř',
     'pater_ls': 'LS Páteř',
+    'vse': 'Všechny snímky',
 } %}
 {% set cesky_nazev_kategorie = nazvy_kategorii.get(aktivni_kategorie, 'Všechny snímky') %}
 

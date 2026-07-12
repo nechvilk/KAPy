@@ -24,66 +24,193 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 4000);
     }
 
-    // --- 1. ZOBRAZENÍ ZÁSTUPNÝCH NÁHLEDŮ S MOŽNOSTÍ VYŘAZENÍ ---
-    const dicomVstup = document.getElementById("dicom-vstup");
-    const nahledKontejner = document.getElementById("dicom-nahled-kontajner");
-    
-    // Globální pole pro uchování vybraných souborů
-    let dicomSouboryProUpload = [];
+// --- 1. ZOBRAZENÍ REÁLNÝCH NÁHLEDŮ S MOŽNOSTÍ VYŘAZENÍ ---
+const dicomVstup = document.getElementById("dicom-vstup");
+const nahledKontejner = document.getElementById("dicom-nahled-kontajner");
 
-    if (dicomVstup) {
-        dicomVstup.addEventListener("change", function() {
-            nahledKontejner.innerHTML = ""; 
-            dicomSouboryProUpload = [];     
-            const soubory = this.files;
+// Globální pole pro uchování vybraných souborů
+let dicomSouboryProUpload = [];
 
-            if (soubory.length > 0) {
-                nahledKontejner.style.display = "flex";
+if (dicomVstup) {
+    dicomVstup.addEventListener("change", function() {
+        nahledKontejner.innerHTML = ""; 
+        dicomSouboryProUpload = [];     
+        const soubory = this.files;
+
+        if (soubory.length > 0) {
+            nahledKontejner.style.display = "flex";
+            
+            Array.from(soubory).forEach((soubor, index) => {
+                dicomSouboryProUpload.push({ file: soubor, aktivni: true });
+
+                const polozka = document.createElement("div");
+                polozka.style.background = "#f8fafc";
+                polozka.style.border = "2px solid #3b82f6";
+                polozka.style.padding = "15px 10px";
+                polozka.style.borderRadius = "8px";
+                polozka.style.textAlign = "center";
+                polozka.style.width = "120px";
+                polozka.style.cursor = "pointer";
+                polozka.style.transition = "all 0.2s ease";
+                polozka.style.boxShadow = "0 2px 4px rgba(0,0,0,0.05)";
                 
-                Array.from(soubory).forEach((soubor, index) => {
-                    dicomSouboryProUpload.push({ file: soubor, aktivni: true });
+                // Místo emodži vytvoříme element canvas pro náhled
+                const canvasId = `canvas_dcm_${index}`;
+                
+                polozka.innerHTML = `
+                    <div style="width: 100px; height: 100px; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                        <canvas id="${canvasId}" width="100" height="100" style="max-width: 100%; max-height: 100%; display: none; pointer-events: none;"></canvas>
+                        <div id="loader_${index}" style="font-size: 0.8rem; color: #64748b; pointer-events: none;">Načítám...</div>
+                    </div>
+                    <div style="font-size: 0.7rem; font-weight: bold; color: #1e293b; word-wrap: break-word; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; pointer-events: none;">${soubor.name}</div>
+                    <div style="font-size: 0.6rem; color: #64748b; margin-top: 5px; pointer-events: none;">${(soubor.size / (1024 * 1024)).toFixed(2)} MB</div>
+                `;
 
-                    const polozka = document.createElement("div");
-                    polozka.style.background = "#f8fafc";
-                    polozka.style.border = "2px solid #3b82f6";
-                    polozka.style.padding = "15px 10px";
-                    polozka.style.borderRadius = "8px";
-                    polozka.style.textAlign = "center";
-                    polozka.style.width = "120px";
-                    polozka.style.cursor = "pointer";
-                    polozka.style.transition = "all 0.2s ease";
-                    polozka.style.boxShadow = "0 2px 4px rgba(0,0,0,0.05)";
-                    
-                    polozka.innerHTML = `
-                        <div style="font-size: 2.5rem; margin-bottom: 8px; pointer-events: none;">🏥</div>
-                        <div style="font-size: 0.7rem; font-weight: bold; color: #1e293b; word-wrap: break-word; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; pointer-events: none;">${soubor.name}</div>
-                        <div style="font-size: 0.6rem; color: #64748b; margin-top: 5px; pointer-events: none;">${(soubor.size / 1024).toFixed(1)} KB</div>
-                    `;
+                // Spustíme asynchronní parsování a vykreslení DICOMu
+                vykresliDicomNahled(soubor, canvasId, `loader_${index}`);
 
-                    polozka.addEventListener("click", () => {
-                        const novyStav = !dicomSouboryProUpload[index].aktivni;
-                        dicomSouboryProUpload[index].aktivni = novyStav;
+                polozka.addEventListener("click", () => {
+                    const novyStav = !dicomSouboryProUpload[index].aktivni;
+                    dicomSouboryProUpload[index].aktivni = novyStav;
 
-                        if (novyStav) {
-                            polozka.style.opacity = "1";
-                            polozka.style.filter = "grayscale(0%)";
-                            polozka.style.border = "2px solid #3b82f6";
-                            polozka.style.transform = "scale(1)";
-                        } else {
-                            polozka.style.opacity = "0.4";
-                            polozka.style.filter = "grayscale(100%)";
-                            polozka.style.border = "2px dashed #cbd5e1";
-                            polozka.style.transform = "scale(0.95)";
-                        }
-                    });
-
-                    nahledKontejner.appendChild(polozka);
+                    if (novyStav) {
+                        polozka.style.opacity = "1";
+                        polozka.style.filter = "grayscale(0%)";
+                        polozka.style.border = "2px solid #3b82f6";
+                        polozka.style.transform = "scale(1)";
+                    } else {
+                        polozka.style.opacity = "0.4";
+                        polozka.style.filter = "grayscale(100%)";
+                        polozka.style.border = "2px dashed #cbd5e1";
+                        polozka.style.transform = "scale(0.95)";
+                    }
                 });
-            } else {
-                nahledKontejner.style.display = "none";
+
+                nahledKontejner.appendChild(polozka);
+            });
+        } else {
+            nahledKontejner.style.display = "none";
+        }
+    });
+}
+
+// --- POMOCNÁ FUNKCE PRO RYCHLÉ PARSOVÁNÍ RAW DICOM DATA ---
+function vykresliDicomNahled(file, canvasId, loaderId) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const buffer = e.target.result;
+            const view = new DataView(buffer);
+            
+            // Základní kontrola DICOM "DICM" prefixu na offsetu 128
+            const magic = String.fromCharCode(view.getUint8(128), view.getUint8(129), view.getUint8(130), view.getUint8(131));
+            if (magic !== "DICM") throw new Error("Není DICOM");
+
+            let rows = 512; // fallback, pokud parsování selže
+            let cols = 512;
+            let pixelDataOffset = -1;
+            let bitsAllocated = 16;
+
+            // Velmi jednoduchý a rychlý skener tagů
+            for (let i = 132; i < buffer.byteLength - 8; i += 2) {
+                // Hledáme tagy (Group, Element)
+                const group = view.getUint16(i, true);
+                const element = view.getUint16(i + 2, true);
+
+                if (group === 0x0028 && element === 0x0010) { // Rows
+                    rows = view.getUint16(i + 8, true);
+                } else if (group === 0x0028 && element === 0x0011) { // Columns
+                    cols = view.getUint16(i + 8, true);
+                } else if (group === 0x0028 && element === 0x00100) { // Bits Allocated
+                    bitsAllocated = view.getUint16(i + 8, true);
+                } else if (group === 0x7fe0 && element === 0x0010) { // Pixel Data
+                    // Detekce, zda jde o explicitní nebo implicitní VR (přeskočení délky dat)
+                    const vr = String.fromCharCode(view.getUint8(i + 4), view.getUint8(i + 5));
+                    if (["OW", "OB", "UN"].includes(vr)) {
+                        pixelDataOffset = i + 12;
+                    } else {
+                        pixelDataOffset = i + 8;
+                    }
+                    break; // Našli jsme pixely, můžeme končit hledání tagů
+                }
             }
-        });
-    }
+
+            if (pixelDataOffset === -1) throw new Error("Pixel data nenašlo");
+
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Inicializace dočasného canvasu v plné velikosti DICOMu
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = cols;
+            tempCanvas.height = rows;
+            const tempCtx = tempCanvas.getContext('2d');
+            const imgData = tempCtx.createImageData(cols, rows);
+
+            // Čtení pixelů (předpokládáme standardní 16-bit nebo 8-bit nekomprimovaný grayscale)
+            let min = 65535, max = 0;
+            const numPixels = cols * rows;
+            const pixels = new Uint16Array(numPixels);
+
+            if (bitsAllocated === 16) {
+                for (let p = 0; p < numPixels; p++) {
+                    const offset = pixelDataOffset + (p * 2);
+                    if (offset + 1 < buffer.byteLength) {
+                        const val = view.getUint16(offset, true);
+                        pixels[p] = val;
+                        if (val < min) min = val;
+                        if (val > max) max = val;
+                    }
+                }
+            } else { // 8-bit fallback
+                for (let p = 0; p < numPixels; p++) {
+                    const offset = pixelDataOffset + p;
+                    if (offset < buffer.byteLength) {
+                        const val = view.getUint8(offset);
+                        pixels[p] = val;
+                        if (val < min) min = val;
+                        if (val > max) max = val;
+                    }
+                }
+            }
+
+            // Rychlé okénkování (min/max rozsah) pro optimální kontrast na webu
+            const range = max - min || 1;
+            for (let p = 0; p < numPixels; p++) {
+                const norm = ((pixels[p] - min) / range) * 255;
+                const idx = p * 4;
+                imgData.data[idx] = norm;     // R
+                imgData.data[idx + 1] = norm; // G
+                imgData.data[idx + 2] = norm; // B
+                imgData.data[idx + 3] = 255;  // Alpha
+            }
+
+            tempCtx.putImageData(imgData, 0, 0);
+
+            // Zmenšení velkého snímku do malého
+            // 1. Výpočet správného měřítka pro zachování poměru stran
+            const meritko = Math.min(100 / cols, 100 / rows);
+            const novaSirka = cols * meritko;
+            const novaVyska = rows * meritko;
+            
+            // 2. Výpočet odsazení pro vycentrování v našem 100x100 boxu
+            const offsetX = (100 - novaSirka) / 2;
+            const offsetY = (100 - novaVyska) / 2;
+
+            // 3. Vykreslení (původní_canvas, x_zdroj, y_zdroj, sirka_zdroj, vyska_zdroj, x_cil, y_cil, sirka_cil, vyska_cil)
+            ctx.drawImage(tempCanvas, 0, 0, cols, rows, offsetX, offsetY, novaSirka, novaVyska);
+            
+            // Schovat loader a ukázat canvas
+            document.getElementById(loaderId).style.display = "none";
+            canvas.style.display = "block";
+
+        } catch (err) {
+            // Při chybě parsování (např. komprimovaný JPEG2000 DICOM) zobrazíme náhradní text
+            document.getElementById(loaderId).innerText = "Snímek (No Preview)";
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
 
     // --- 2. NAHRÁVÁNÍ NA SERVER S REÁLNÝM PROGRESS BAREM ---
     const tlacitkoNahrat = document.getElementById("tlacitko-nahrat-dicom");
