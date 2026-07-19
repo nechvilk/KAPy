@@ -10,7 +10,7 @@
     <nav class="navbar">
     
     <div class="navbar-left">
-        <a href="{{ url_for('index') }}" class="navbar-logo">PyBox 📦</a>
+        <a href="{{ url_for('index') }}" class="navbar-logo">KAPy 💦</a>
         
         {% if session.get('user_id') %}
             <div class="navbar-menu">
@@ -18,33 +18,34 @@
                     <a href="{{ url_for('muj_dicom', kategorie='vse') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' }}">
                         <i class="fas fa-x-ray"></i> DICOM data ▾
                     </a>
-                    <div class="dropdown-content">                       
-                        <a href="{{ url_for('muj_dicom', kategorie='hrudnik') }}" 
-                           class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'hrudnik' }}">
-                           Hrudník
-                        </a>
-                        <a href="{{ url_for('muj_dicom', kategorie='pater_c') }}" 
-                           class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'pater_c' }}">
-                           C Páteř
-                        </a>
-                        <a href="{{ url_for('muj_dicom', kategorie='pater_th') }}" 
-                           class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'pater_th' }}">
-                           Th Páteř
-                        </a>
-                        <a href="{{ url_for('muj_dicom', kategorie='pater_ls') }}" 
-                           class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'pater_ls' }}">
-                           LS Páteř
-                        </a>
-                        <a href="{{ url_for('muj_dicom', kategorie='vse') }}" 
-                           class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'vse' }}">
-                           Všechny snímky
-                        </a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('muj_dicom', kategorie='hrudnik_ap') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'hrudnik_ap' }}">Hrudník PA/AP</a>
+                        <a href="{{ url_for('muj_dicom', kategorie='hrudnik_lat') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'hrudnik_lat' }}">Hrudník LAT</a>
+    
+                        <a href="{{ url_for('muj_dicom', kategorie='lebka_ap') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'lebka_ap' }}">Lebka PA/AP</a>
+                        <a href="{{ url_for('muj_dicom', kategorie='lebka_lat') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'lebka_lat' }}">Lebka LAT</a>
+    
+                        <a href="{{ url_for('muj_dicom', kategorie='c_pater_ap') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'c_pater_ap' }}">Krční páteř AP</a>
+                        <a href="{{ url_for('muj_dicom', kategorie='c_pater_lat') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'c_pater_lat' }}">Krční páteř LAT</a>
+    
+                        <a href="{{ url_for('muj_dicom', kategorie='th_pater_ap') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'th_pater_ap' }}">Hrudní páteř AP</a>
+                        <a href="{{ url_for('muj_dicom', kategorie='th_pater_lat') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'th_pater_lat' }}">Hrudní páteř LAT</a>
+    
+                        <a href="{{ url_for('muj_dicom', kategorie='ls_pater_ap') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'ls_pater_ap' }}">Bederní páteř AP</a>
+                        <a href="{{ url_for('muj_dicom', kategorie='ls_pater_lat') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'ls_pater_lat' }}">Bederní páteř LAT</a>
+    
+                        <a href="{{ url_for('muj_dicom', kategorie='bricho_ap') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'bricho_ap' }}">Břicho AP</a>
+                        <a href="{{ url_for('muj_dicom', kategorie='panev_ap') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'panev_ap' }}">Pánev AP</a>
+    
+                        <a href="{{ url_for('muj_dicom', kategorie='vse') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' and request.view_args.get('kategorie') == 'vse' }}" style="border-top: 1px solid #e2e8f0; margin-top: 5px; padding-top: 10px; font-weight: bold;">Všechny snímky</a>
                     </div>
                 </div>
 
+                {# Odkaz na Fotky je skrytý, ale stránka /moje-fotky stále funguje při ručním zadání
                 <a href="{{ url_for('moje_fotky') }}" class="{{ 'active' if request.endpoint == 'moje_fotky' }}">
                     Fotky
-                </a> 
+                </a>
+                #} 
             </div>
         {% endif %}
     </div>

@@ -1,13 +1,21 @@
 {% extends "base.html" %}
-{% block title %}DICOM | PyBox{% endblock %}
+{% block title %}DICOM | KAPy{% endblock %}
 
 {% block content %}
 {% set nazvy_kategorii = {
-    'hrudnik': 'Hrudník',
-    'pater_c': 'C Páteř',
-    'pater_th': 'Th Páteř',
-    'pater_ls': 'LS Páteř',
-    'vse': 'Všechny snímky',
+    'hrudnik_ap': 'Hrudník PA/AP',
+    'hrudnik_lat': 'Hrudník LAT',
+    'lebka_ap': 'Lebka PA/AP',
+    'lebka_lat': 'Lebka LAT',
+    'c_pater_ap': 'Krční páteř AP',
+    'c_pater_lat': 'Krční páteř LAT',
+    'th_pater_ap': 'Hrudní páteř AP',
+    'th_pater_lat': 'Hrudní páteř LAT',
+    'ls_pater_ap': 'Bederní páteř AP',
+    'ls_pater_lat': 'Bederní páteř LAT',
+    'bricho_ap': 'Břicho AP',
+    'panev_ap': 'Pánev AP',
+    'vse': 'Všechny snímky'
 } %}
 {% set cesky_nazev_kategorie = nazvy_kategorii.get(aktivni_kategorie, 'Všechny snímky') %}
 
@@ -24,7 +32,7 @@
 </script>
 
 <div class="card">
-    <h2>Nahrát DICOM data – {{ cesky_nazev_kategorie }} 🩻</h2>
+    <h2>Nahrát DICOM data – {{ cesky_nazev_kategorie }} </h2>
     <p>Vyberte soubory *.dcm z vašeho zařízení.</p>
     
     <form id="dicom-upload-form" enctype="multipart/form-data">
@@ -52,7 +60,7 @@
 </div>
 
 <div id="analyza-vysledky-karta" class="card" style="display: none; margin-top: 20px; border-left: 5px solid #3b82f6;">
-    <h3>📊 Výsledky DRL Analýzy</h3>
+    <h3>📊 Výsledky</h3>
     <div id="analyza-data" style="display: flex; justify-content: space-around; flex-wrap: wrap; margin-top: 15px;">
     </div>
 </div>
@@ -137,8 +145,13 @@
                         </div>
 
                         <div style="margin-top: 10px; background: #eff6ff; padding: 10px; border-radius: 6px; border: 1px solid #dbeafe; text-align: center;">
-                            <small style="color: #1e40af; text-transform: uppercase; font-size: 0.6rem; font-weight: 800; display: block;">KAP (Kerma Area Product)</small>
-                            <strong style="color: #2563eb; display: flex; align-items: baseline; justify-content: center; gap: 5px;">
+                            <small 
+                                style="color: #1e40af; text-transform: uppercase; display: block; cursor: help; line-height: 1.3;"
+                                title="Poznámka k jednotkám: Aplikace automaticky přepočítává surovou hodnotu z DICOM tagu (0018,115E) na mGy·cm² (násobením ×100 dle standardu dGy·cm²). Ověřte si, zda vaše modalita neukládá data nestandardně.">
+                                <span style="font-size: 1.15rem; font-weight: 900; letter-spacing: 0.5px;">KAP</span> <span style="color: #3b82f6; font-size: 0.7rem; vertical-align: middle; position: relative; top: -1px;">ℹ️</span><br>
+                                <span style="color: #60a5fa; font-weight: 600; font-size: 0.55rem;">(Kerma Area Product)</span>
+                            </small>
+                            <strong style="color: #2563eb; display: flex; align-items: baseline; justify-content: center; gap: 5px; margin-top: 4px;">
                                 <span style="font-size: 1.5rem;">{{ d['kap'] }}</span>
                                 <span style="font-size: 0.9rem; color: #64748b;">$mGy \cdot cm^2$</span>
                             </strong>

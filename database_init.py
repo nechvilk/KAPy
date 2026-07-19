@@ -83,6 +83,14 @@ def inicializuj_databazi(path):
             cursor.execute(f"ALTER TABLE dicom_snimky ADD COLUMN {nazev_sloupce} {datovy_typ}")
             print(f"Byl přidán nový sloupec: {nazev_sloupce}")
 
+    # ---------------------------------------------------------
+    # MIGRACE DAT: Převod starých kategorií na nové
+    # ---------------------------------------------------------
+    cursor.execute("UPDATE dicom_snimky SET kategorie = 'hrudnik_ap' WHERE kategorie = 'hrudnik'")
+    cursor.execute("UPDATE dicom_snimky SET kategorie = 'c_pater_ap' WHERE kategorie = 'pater_c'")
+    cursor.execute("UPDATE dicom_snimky SET kategorie = 'th_pater_ap' WHERE kategorie = 'pater_th'")
+    cursor.execute("UPDATE dicom_snimky SET kategorie = 'ls_pater_ap' WHERE kategorie = 'pater_ls'")
+
     connection.commit()
     connection.close()
     print(f"Databáze a tabulky byly vytvořeny/aktualizovány v: {path} ✅")

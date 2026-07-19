@@ -1,27 +1,51 @@
 {% extends "base.html" %}
 
-{% block title %}Domovská stránka | PyBox{% endblock %}
+{% block title %}Domovská stránka | KAPy{% endblock %}
 
 {% block content %}
 <header>
-    <h1>Vítejte v aplikaci PyBox!</h1>
+    <h1>Vítejte!</h1>
 </header>
 
 <main>
+    <!-- 1. O aplikaci (Vidí všichni - přihlášení i nepřihlášení) -->
+    <div class="card">
+        <h2>O projektu </h2>
+        
+        <p class="justify-text"> 
+            Nástroj k analýze typických hodnot veličin sloužících k
+            posouzení optimalizace radiační ochrany pomocí diagnostických referenčních úrovní (DRÚ)
+            z vašich skiagrafických DICOM dat.
+        </p>
+        
+        <p class="justify-text" style="margin-top: 15px;">
+            Nahrávejte snímky, organizujte je podle kategorií a
+            jediným kliknutím získejte statistický přehled
+            o průměrných hodnotách KAP (Kerma Area Product) a hmotnostech vybraných pacientů.
+            Všechna data pod kontrolou, kdykoliv a kdekoliv.
+        </p>
+    </div>
+
+    <!-- 2. Stav přihlášení -->
     {% if session.get('user_id') %}
-        <div class="card">
+        <!-- Pro přihlášené -->
+        <div class="card" style="margin-top: 20px;">
             <h2>Jste přihlášeni ✅</h2>
-            <p class="justify-text"> 
-                Nástroj k analýze diagnostických referenčních úrovní (DRÚ) z vašich skiagrafických
-                DICOM dat. Nahrávejte snímky, organizujte je podle kategorií a
-                jediným kliknutím získejte statistický přehled o radiační zátěži pacientů.
-                Všechna data pod kontrolou, kdykoliv a kdekoliv.
+            <p>
+                Vítejte zpět, <strong>{{ session.get('user_jmeno') }}</strong>!
+                Můžete přejít do sekce <strong>DICOM data</strong> v horním menu
+                a začít pracovat.
             </p>
         </div>
     {% else %}
-        <div class="card">
-            <h2>Nejste přihlášeni 🔒</h2>
-            <p>Pro přístup k obsahu se prosím přihlaste nebo zaregistrujte nahoře v liště.</p>
+        <!-- Pro nepřihlášené (Navádí na stávající prvky v navbaru) -->
+        <div class="card" style="margin-top: 20px;">
+            <h2>Uživatelská sekce 🔒</h2>
+            <p>
+                Pro přístup k nahrávání a zpracování DICOM snímků se prosím
+                <strong>přihlaste</strong> nebo <strong>zaregistrujte</strong>
+                pomocí tlačítek v pravém horním rohu stránky.
+            </p>
         </div>
     {% endif %}
 </main>
