@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}PyBox{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- FontAwesome (pokud používáš ikony, nechávám pro jistotu) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <nav class="navbar">
@@ -14,6 +16,7 @@
         
         {% if session.get('user_id') %}
             <div class="navbar-menu">
+                <!-- 1. Menu DICOM data -->
                 <div class="navbar-dropdown">
                     <a href="{{ url_for('muj_dicom', kategorie='vse') }}" class="{{ 'active' if request.endpoint == 'muj_dicom' }}">
                         <i class="fas fa-x-ray"></i> DICOM data ▾
@@ -41,6 +44,51 @@
                     </div>
                 </div>
 
+                <!-- 2. NOVÉ: Menu Typické hodnoty -->
+                <div class="navbar-dropdown">
+                    <a href="#" style="cursor: default;">
+                        <i class="fas fa-chart-line"></i> Typické hodnoty ▾
+                    </a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('muj_dicom', kategorie='hrudnik_ap') }}">Hrudník PA/AP 
+                            {% if typicke_hodnoty and typicke_hodnoty.get('hrudnik_ap') %}<strong style="color: #3b82f6;">({{ typicke_hodnoty['hrudnik_ap'] }})</strong>{% endif %}
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='hrudnik_lat') }}">Hrudník LAT 
+                            {% if typicke_hodnoty and typicke_hodnoty.get('hrudnik_lat') %}<strong style="color: #3b82f6;">({{ typicke_hodnoty['hrudnik_lat'] }})</strong>{% endif %}
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='lebka_ap') }}">Lebka PA/AP 
+                            {% if typicke_hodnoty and typicke_hodnoty.get('lebka_ap') %}<strong style="color: #3b82f6;">({{ typicke_hodnoty['lebka_ap'] }})</strong>{% endif %}
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='lebka_lat') }}">Lebka LAT 
+                            {% if typicke_hodnoty and typicke_hodnoty.get('lebka_lat') %}<strong style="color: #3b82f6;">({{ typicke_hodnoty['lebka_lat'] }})</strong>{% endif %}
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='c_pater_ap') }}">Krční páteř AP 
+                            {% if typicke_hodnoty and typicke_hodnoty.get('c_pater_ap') %}<strong style="color: #3b82f6;">({{ typicke_hodnoty['c_pater_ap'] }})</strong>{% endif %}
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='c_pater_lat') }}">Krční páteř LAT 
+                            {% if typicke_hodnoty and typicke_hodnoty.get('c_pater_lat') %}<strong style="color: #3b82f6;">({{ typicke_hodnoty['c_pater_lat'] }})</strong>{% endif %}
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='th_pater_ap') }}">Hrudní páteř AP 
+                            {% if typicke_hodnoty and typicke_hodnoty.get('th_pater_ap') %}<strong style="color: #3b82f6;">({{ typicke_hodnoty['th_pater_ap'] }})</strong>{% endif %}
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='th_pater_lat') }}">Hrudní páteř LAT 
+                            {% if typicke_hodnoty and typicke_hodnoty.get('th_pater_lat') %}<strong style="color: #3b82f6;">({{ typicke_hodnoty['th_pater_lat'] }})</strong>{% endif %}
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='ls_pater_ap') }}">Bederní páteř AP 
+                            {% if typicke_hodnoty and typicke_hodnoty.get('ls_pater_ap') %}<strong style="color: #3b82f6;">({{ typicke_hodnoty['ls_pater_ap'] }})</strong>{% endif %}
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='ls_pater_lat') }}">Bederní páteř LAT 
+                            {% if typicke_hodnoty and typicke_hodnoty.get('ls_pater_lat') %}<strong style="color: #3b82f6;">({{ typicke_hodnoty['ls_pater_lat'] }})</strong>{% endif %}
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='bricho_ap') }}">Břicho AP 
+                            {% if typicke_hodnoty and typicke_hodnoty.get('bricho_ap') %}<strong style="color: #3b82f6;">({{ typicke_hodnoty['bricho_ap'] }})</strong>{% endif %}
+                        </a>
+                        <a href="{{ url_for('muj_dicom', kategorie='panev_ap') }}">Pánev AP 
+                            {% if typicke_hodnoty and typicke_hodnoty.get('panev_ap') %}<strong style="color: #3b82f6;">({{ typicke_hodnoty['panev_ap'] }})</strong>{% endif %}
+                        </a>
+                    </div>
+                </div>
+
                 {# Odkaz na Fotky je skrytý, ale stránka /moje-fotky stále funguje při ručním zadání
                 <a href="{{ url_for('moje_fotky') }}" class="{{ 'active' if request.endpoint == 'moje_fotky' }}">
                     Fotky
@@ -60,7 +108,7 @@
         {% endif %}
     </div>
 
-</nav>
+    </nav>
 
     <div class="container">
         {% with messages = get_flashed_messages() %}

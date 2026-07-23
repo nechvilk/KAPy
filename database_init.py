@@ -91,6 +91,19 @@ def inicializuj_databazi(path):
     cursor.execute("UPDATE dicom_snimky SET kategorie = 'th_pater_ap' WHERE kategorie = 'pater_th'")
     cursor.execute("UPDATE dicom_snimky SET kategorie = 'ls_pater_ap' WHERE kategorie = 'pater_ls'")
 
+    # 4. NOVÁ TABULKA PRO TYPICKÉ HODNOTY (Ukládání poslední analýzy)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS typicke_hodnoty (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uzivatel_id INTEGER,
+        kategorie TEXT,
+        prumerny_kap REAL,
+        datum_aktualizace TEXT,
+        UNIQUE(uzivatel_id, kategorie),
+        FOREIGN KEY (uzivatel_id) REFERENCES uzivatele(id)
+    )
+    ''')
+
     connection.commit()
     connection.close()
     print(f"Databáze a tabulky byly vytvořeny/aktualizovány v: {path} ✅")

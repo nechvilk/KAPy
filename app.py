@@ -48,6 +48,25 @@ os.makedirs(app.instance_path, exist_ok=True)
 print(f"Kontroluji (aktualizuji) strukturu databáze: {db_path}")
 inicializuj_databazi(db_path)
 
+# --- NOVÉ: CONTEXT PROCESSOR PRO TYPICKÉ HODNOTY V NAVBARU ---
+@app.context_processor
+def inject_typicke_hodnoty():
+    """Zajistí, že proměnná 'typicke_hodnoty' bude automaticky dostupná ve všech HTML šablonách (např. navbaru)."""
+    typicke_hodnoty = {}
+    if 'user_id' in session:
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            # Načteme všechny kategorie a k nim uložený průměrný KAP pro aktuálního uživatele
+            cursor.execute("SELECT kategorie, prumerny_kap FROM typicke_hodnoty WHERE uzivatel_id = ?", (session['user_id'],))
+            for radek in cursor.fetchall():
+                typicke_hodnoty[radek[0]] = radek[1]
+            conn.close()
+        except sqlite3.OperationalError:
+            # Zachytí stav, kdy tabulka ještě neexistuje (před restartem/inicializací)
+            pass 
+    return dict(typicke_hodnoty=typicke_hodnoty)
+
 @app.route("/")
 def index():
     # Flask automaticky hledá ve složce 'templates'
@@ -518,12 +537,37 @@ def api_analyzovat_vyber():
     # Sestavení slovníku se statistikami
     statistiky = {}
 
-    # Původní výpočet KAP
+    # Původní výpočet KAP + ULOŽENÍ DO DB
     if hodnoty_kap:
+        prumer_kap = round(sum(hodnoty_kap) / len(hodnoty_kap), 2)
         statistiky["pocet"] = len(hodnoty_kap)
-        statistiky["prumer"] = round(sum(hodnoty_kap) / len(hodnoty_kap), 2)
+        statistiky["prumer"] = prumer_kap
         statistiky["max"] = max(hodnoty_kap)
         statistiky["min"] = min(hodnoty_kap)
+        
+        # --- NOVÉ: Uložení průměru do tabulky typicke_hodnoty ---
+        # 1. Zjistíme z databáze kategorii prvního vybraného snímku
+        conn_db = sqlite3.connect(db_path)
+        cursor_db = conn_db.cursor()
+        cursor_db.execute("SELECT kategorie FROM dicom_snimky WHERE id = ?", (ids[0],))
+        kat_row = cursor_db.fetchone()
+        
+        # 2. Pokud se nejedná o kategorii "vse" (tj. z hlavní stránky, kde mohou být namíchány), uložíme/přepíšeme hodnotu
+        if kat_row and kat_row[0] != 'vse':
+            kategorie_snimku = kat_row[0]
+            ted = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Bezpečná aktualizace (tzv. UPSERT)
+            cursor_db.execute("SELECT id FROM typicke_hodnoty WHERE uzivatel_id = ? AND kategorie = ?", (session.get('user_id'), kategorie_snimku))
+            if cursor_db.fetchone():
+                cursor_db.execute("UPDATE typicke_hodnoty SET prumerny_kap = ?, datum_aktualizace = ? WHERE uzivatel_id = ? AND kategorie = ?", 
+                                  (prumer_kap, ted, session.get('user_id'), kategorie_snimku))
+            else:
+                cursor_db.execute("INSERT INTO typicke_hodnoty (uzivatel_id, kategorie, prumerny_kap, datum_aktualizace) VALUES (?, ?, ?, ?)", 
+                                  (session.get('user_id'), kategorie_snimku, prumer_kap, ted))
+            conn_db.commit()
+        conn_db.close()
+        
     else:
         statistiky["pocet"] = 0
         statistiky["prumer"] = statistiky["max"] = statistiky["min"] = "N/A"
