@@ -212,14 +212,15 @@ function vykresliDicomNahled(file, canvasId, loaderId) {
     reader.readAsArrayBuffer(file);
 }
 
-    // --- 2. NAHRÁVÁNÍ NA SERVER S REÁLNÝM PROGRESS BAREM ---
+    // --- 2. NAHRÁVÁNÍ NA SERVER VČETNĚ KLIENTSKÉ ANONYMIZACE ---
     const tlacitkoNahrat = document.getElementById("tlacitko-nahrat-dicom");
     const progressWrapper = document.getElementById("dicom-progress-wrapper");
     const progressBar = document.getElementById("dicom-progress-bar");
     const progressText = document.getElementById("dicom-progress-text");
 
     if (tlacitkoNahrat) {
-        tlacitkoNahrat.addEventListener("click", () => {
+        // Změna na async funkci, abychom mohli čekat na zpracování souborů
+        tlacitkoNahrat.addEventListener("click", async () => {
             const aktivniSoubory = dicomSouboryProUpload.filter(polozka => polozka.aktivni).map(p => p.file);
             
             if (aktivniSoubory.length === 0) {
@@ -227,27 +228,38 @@ function vykresliDicomNahled(file, canvasId, loaderId) {
                 return;
             }
 
+            tlacitkoNahrat.disabled = true;
+            progressWrapper.style.display = "block";
+            progressText.innerText = "Anonymizuji citlivá data v prohlížeči... 🛡️";
+
             const formData = new FormData();
-            aktivniSoubory.forEach(soubor => {
-                formData.append("dicom_files", soubor);
-            });
+
+            // Snímky proženeme anonymizérem přímo v RAM paměti PC před odesláním
+            for (const soubor of aktivniSoubory) {
+                try {
+                    const anonymniBlob = await anonymizujDicomVProhlizeci(soubor);
+                    // Přidáme vyčištěný Blob do formuláře pod stejným názvem
+                    formData.append("dicom_files", anonymniBlob, soubor.name);
+                } catch (chybaAnonymizace) {
+                    console.error("Chyba při čištění souboru:", soubor.name, chybaAnonymizace);
+                    showToast(`❌ Nepodařilo se bezpečně vyčistit soubor ${soubor.name}. Nahrávání bylo zrušeno.`, "error");
+                    tlacitkoNahrat.disabled = false;
+                    progressWrapper.style.display = "none";
+                    return;
+                }
+            }
 
             // --- DYNAMICKÁ DETEKCE KATEGORIE Z URL ADRESY ---
             const cestaSegmenty = window.location.pathname.split('/').filter(p => p !== "");
             let aktualniKategorie = "vse";
             
-            // Hledáme segment za 'muj-dicom' (např. /muj-dicom/hlava -> index 'muj-dicom' je 0, hledáme prvek 1)
             const indexDicom = cestaSegmenty.indexOf("muj-dicom");
             if (indexDicom !== -1 && cestaSegmenty[indexDicom + 1]) {
                 aktualniKategorie = cestaSegmenty[indexDicom + 1];
             }
             
-            // Přibalíme zjištěnou kategorii do formuláře pro Flask backend
             formData.append("kategorie", aktualniKategorie);
             // ------------------------------------------------
-
-            tlacitkoNahrat.disabled = true;
-            progressWrapper.style.display = "block";
             
             const xhr = new XMLHttpRequest();
             xhr.open("POST", "/api/nahrat-dicom", true);
@@ -258,9 +270,9 @@ function vykresliDicomNahled(file, canvasId, loaderId) {
                     progressBar.style.width = procenta + "%";
                     
                     if (procenta === 100) {
-                        progressText.innerText = "Zpracovávám metadata a náhledy... ⏳";
+                        progressText.innerText = "Server zpracovává metadata... ⏳";
                     } else {
-                        progressText.innerText = `Nahrávám: ${procenta}%`;
+                        progressText.innerText = `Bezpečné nahrávání: ${procenta}%`;
                     }
                 }
             });
@@ -271,7 +283,7 @@ function vykresliDicomNahled(file, canvasId, loaderId) {
                     
                     if (xhr.status >= 200 && xhr.status < 300) {
                         progressBar.style.width = "100%";
-                        showToast("Snímky byly úspěšně nahrány.", "success");
+                        showToast("Snímky byly bezpečně nahrány.", "success");
                         
                         setTimeout(() => {
                             window.location.reload(); 
@@ -499,5 +511,92 @@ function vykresliDicomNahled(file, canvasId, loaderId) {
             }
         });
     }
+
+// --- POMOCNÁ FUNKCE PRO BINÁRNÍ ANONYMIZACI NA FRONTENDU ---
+function anonymizujDicomVProhlizeci(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const buffer = e.target.result;
+                const view = new DataView(buffer);
+                const uint8 = new Uint8Array(buffer);
+                
+                // Ověření DICM hlavičky
+                const magic = String.fromCharCode(view.getUint8(128), view.getUint8(129), view.getUint8(130), view.getUint8(131));
+                if (magic !== "DICM") {
+                    // Pokud to z nějakého důvodu není DICOM, pustíme ho dál beze změny
+                    resolve(file);
+                    return;
+                }
+
+                // Definice tagů k vyčištění (Group, Element, Nová hodnota)
+                const tagyKAnonymizaci = [
+                    { g: 0x0010, e: 0x0010, novyText: "ANONYMOUS^PATIENT" }, // PatientName
+                    { g: 0x0010, e: 0x0020, novyText: "anonymous" },         // PatientID
+                    { g: 0x0010, e: 0x0030, novyText: "00000000" },          // PatientBirthDate
+                    { g: 0x0008, e: 0x0080, novyText: "ANONYMOUS" },         // InstitutionName
+                    { g: 0x0008, e: 0x0090, novyText: "" },                  // ReferringPhysicianName
+                    { g: 0x0008, e: 0x1050, novyText: "" }                   // PerformingPhysicianName
+                ];
+
+                // Procházíme soubor bajt po bajtu
+                for (let i = 132; i < buffer.byteLength - 12; i++) {
+                    const group = view.getUint16(i, true);
+                    const element = view.getUint16(i + 2, true);
+
+                    // OPTIMALIZACE: Jakmile narazíme na Pixel Data (0x7fe0, 0x0010), 
+                    // máme jistotu, že všechny textové hlavičky už proběhly. Můžeme vykočit a ušetřit čas.
+                    if (group === 0x7fe0 && element === 0x0010) {
+                        break;
+                    }
+
+                    const nalezenyTag = tagyKAnonymizaci.find(t => t.g === group && t.e === element);
+                    if (nalezenyTag) {
+                        // Detekce Explicit VR (jestli jsou na pozici i+4 dvě velká ASCII písmena)
+                        const c1 = view.getUint8(i + 4);
+                        const c2 = view.getUint8(i + 5);
+                        const jeExplicit = (c1 >= 65 && c1 <= 90) && (c2 >= 65 && c2 <= 90);
+
+                        let offsetHodnoty = 0;
+                        let delkaHodnoty = 0;
+
+                        if (jeExplicit) {
+                            // Běžné textové VR (PN, LO, DA, SH) mají délku uloženu jako 16-bit integer na offsetu i+6
+                            delkaHodnoty = view.getUint16(i + 6, true);
+                            offsetHodnoty = i + 8;
+                        } else {
+                            // Implicit VR má délku uloženu jako 32-bit integer na offsetu i+4
+                            delkaHodnoty = view.getUint32(i + 4, true);
+                            offsetHodnoty = i + 8;
+                        }
+
+                        // Pokud má pole nějakou délku a nepřeteče soubor, vygumujeme ho
+                        if (delkaHodnoty > 0 && (offsetHodnoty + delkaHodnoty) <= buffer.byteLength) {
+                            // 1. Vyplníme celou původní délku mezerami (0x20)
+                            for (let k = 0; k < delkaHodnoty; k++) {
+                                uint8[offsetHodnoty + k] = 0x20;
+                            }
+                            // 2. Vepíšeme náš bezpečný text (pokud nějaký chceme vložit)
+                            const text = nalezenyTag.novyText;
+                            for (let k = 0; k < Math.min(text.length, delkaHodnoty); k++) {
+                                uint8[offsetHodnoty + k] = text.charCodeAt(k);
+                            }
+                        }
+                    }
+                }
+
+                // Vytvoříme z upraveného bufferu nový bezpečný Blob (fiktivní soubor)
+                const vycistenyBlob = new Blob([buffer], { type: file.type });
+                resolve(vycistenyBlob);
+
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsArrayBuffer(file);
+    });
+}
 
 });
