@@ -51,19 +51,29 @@ inicializuj_databazi(db_path)
 # --- NOVÉ: CONTEXT PROCESSOR PRO TYPICKÉ HODNOTY V NAVBARU ---
 @app.context_processor
 def inject_typicke_hodnoty():
-    """Zajistí, že proměnná 'typicke_hodnoty' bude automaticky dostupná ve všech HTML šablonách (např. navbaru)."""
     typicke_hodnoty = {}
     if 'user_id' in session:
         try:
             conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row  # Abychom mohli přistupovat k datům přes jména sloupců
             cursor = conn.cursor()
-            # Načteme všechny kategorie a k nim uložený průměrný KAP pro aktuálního uživatele
-            cursor.execute("SELECT kategorie, prumerny_kap FROM typicke_hodnoty WHERE uzivatel_id = ?", (session['user_id'],))
+            
+            cursor.execute("SELECT kategorie, prumerny_kap, datum_aktualizace FROM typicke_hodnoty WHERE uzivatel_id = ?", (session['user_id'],))
             for radek in cursor.fetchall():
-                typicke_hodnoty[radek[0]] = radek[1]
+                # Převedeme formát z databáze na hezčí datum
+                try:
+                    datum_obj = datetime.strptime(radek['datum_aktualizace'], "%Y-%m-%d %H:%M:%S")
+                    formatovane_datum = datum_obj.strftime("%d.%m.%Y")
+                except (ValueError, TypeError):
+                    formatovane_datum = ""
+                
+                # Uložíme si nyní obě hodnoty (KAP i datum) do slovníku pod danou kategorii
+                typicke_hodnoty[radek['kategorie']] = {
+                    'kap': radek['prumerny_kap'],
+                    'datum': formatovane_datum
+                }
             conn.close()
         except sqlite3.OperationalError:
-            # Zachytí stav, kdy tabulka ještě neexistuje (před restartem/inicializací)
             pass 
     return dict(typicke_hodnoty=typicke_hodnoty)
 
@@ -536,6 +546,8 @@ def api_analyzovat_vyber():
 
     # Sestavení slovníku se statistikami
     statistiky = {}
+    kategorie_js = None
+    datum_js = None
 
     # Původní výpočet KAP + ULOŽENÍ DO DB
     if hodnoty_kap:
@@ -545,27 +557,31 @@ def api_analyzovat_vyber():
         statistiky["max"] = max(hodnoty_kap)
         statistiky["min"] = min(hodnoty_kap)
         
-        # --- NOVÉ: Uložení průměru do tabulky typicke_hodnoty ---
-        # 1. Zjistíme z databáze kategorii prvního vybraného snímku
+        # --- Uložení průměru do tabulky typicke_hodnoty ---
         conn_db = sqlite3.connect(db_path)
         cursor_db = conn_db.cursor()
         cursor_db.execute("SELECT kategorie FROM dicom_snimky WHERE id = ?", (ids[0],))
         kat_row = cursor_db.fetchone()
         
-        # 2. Pokud se nejedná o kategorii "vse" (tj. z hlavní stránky, kde mohou být namíchány), uložíme/přepíšeme hodnotu
         if kat_row and kat_row[0] != 'vse':
             kategorie_snimku = kat_row[0]
-            ted = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ted_db = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ted_zobrazeni = datetime.now().strftime("%d.%m.%Y")  # Formát data pro zobrazení v navbaru
             
             # Bezpečná aktualizace (tzv. UPSERT)
             cursor_db.execute("SELECT id FROM typicke_hodnoty WHERE uzivatel_id = ? AND kategorie = ?", (session.get('user_id'), kategorie_snimku))
             if cursor_db.fetchone():
                 cursor_db.execute("UPDATE typicke_hodnoty SET prumerny_kap = ?, datum_aktualizace = ? WHERE uzivatel_id = ? AND kategorie = ?", 
-                                  (prumer_kap, ted, session.get('user_id'), kategorie_snimku))
+                                  (prumer_kap, ted_db, session.get('user_id'), kategorie_snimku))
             else:
                 cursor_db.execute("INSERT INTO typicke_hodnoty (uzivatel_id, kategorie, prumerny_kap, datum_aktualizace) VALUES (?, ?, ?, ?)", 
-                                  (session.get('user_id'), kategorie_snimku, prumer_kap, ted))
+                                  (session.get('user_id'), kategorie_snimku, prumer_kap, ted_db))
             conn_db.commit()
+
+            # Předání hodnot pro JavaScript
+            kategorie_js = kategorie_snimku
+            datum_js = ted_zobrazeni
+
         conn_db.close()
         
     else:
@@ -582,7 +598,12 @@ def api_analyzovat_vyber():
         statistiky["hmotnost_pocet"] = 0
         statistiky["hmotnost_prumer"] = statistiky["hmotnost_max"] = statistiky["hmotnost_min"] = "N/A"
 
-    return jsonify({"status": "success", "data": statistiky})
+    return jsonify({
+        "status": "success", 
+        "data": statistiky,
+        "kategorie_js": kategorie_js,
+        "datum_js": datum_js
+    })
 
 # --- API ROUTA PRO SMAZÁNÍ DICOMU (AJAX) ---
 @app.route('/api/smazat-dicom/<int:dicom_id>', methods=['DELETE'])

@@ -310,7 +310,7 @@ function vykresliDicomNahled(file, canvasId, loaderId) {
         });
     }
 
-    // --- 3. LOGIKA ZAŠKRTÁVÁTEK A ANALÝZY ---
+// --- 3. LOGIKA ZAŠKRTÁVÁTEK A ANALÝZY ---
     const btnAnalyzovat = document.getElementById("btn-spustit-analyzu");
     const analyzaKarta = document.getElementById("analyza-vysledky-karta");
     const analyzaData = document.getElementById("analyza-data");
@@ -375,6 +375,14 @@ function vykresliDicomNahled(file, canvasId, loaderId) {
 
                     analyzaData.innerHTML = htmlObsah;
                     
+                    // Okamžitá aktualizace hodnoty a data v rozbalovacím menu (bez nutnosti F5)
+                    if (result.kategorie_js && result.datum_js) {
+                        const nabidkaNav = document.getElementById('typ-hodnota-' + result.kategorie_js);
+                        if (nabidkaNav) {
+                            nabidkaNav.innerHTML = `<strong style="color: #3b82f6;">(${stat.prumer})</strong> <span style="font-size: 0.70rem; color: #6b7280; margin-left: 4px;">${result.datum_js}</span>`;
+                        }
+                    }
+
                     showToast("Analýza byla úspěšně dokončena.", "success");
                     analyzaKarta.scrollIntoView({ behavior: 'smooth' });
                 } else {
