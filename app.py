@@ -13,6 +13,8 @@ from dicom_logic import get_drl_metadata, generate_thumb
 import pandas as pd
 from io import StringIO
 import csv
+import pydicom
+from pydicom.errors import InvalidDicomError
 
 # Definice povolených souborů
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif'}
@@ -456,6 +458,8 @@ def api_nahrat_dicom():
         return jsonify({"status": "error", "zprava": "Žádné soubory k nahrání."}), 400
 
     uspesne = 0
+    preskocene = 0  # NOVÉ: Počítadlo chybných/neplatných souborů
+    
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
@@ -467,12 +471,29 @@ def api_nahrat_dicom():
             cesta_dcm = os.path.join(DICOM_RAW_FOLDER, unikatni_nazev)
             
             soubor.save(cesta_dcm)
+            
+            # --- NOVÉ ZABEZPEČENÍ: Kontrola platnosti DICOMu ihned po uložení ---
+            try:
+                # stop_before_pixels=True zaručí, že je kontrola bleskurychlá
+                pydicom.dcmread(cesta_dcm, stop_before_pixels=True)
+            except InvalidDicomError:
+                # Soubor není DICOM (např. přejmenovaný .jpg, prázdný soubor, atd.)
+                os.remove(cesta_dcm)  # Odstraníme "odpad" z disku
+                preskocene += 1
+                continue  # Přeskočí zbytek kódu pro tento soubor a jde na další
+            except Exception:
+                # Jiná chyba při čtení (např. silně poškozený soubor)
+                os.remove(cesta_dcm)
+                preskocene += 1
+                continue
+            # ---------------------------------------------------------------------
+
+            # Pokud kontrola prošla, pokračujeme tvým původním kódem
             meta = get_drl_metadata(cesta_dcm)
             
             thumb_nazev = f"thumb_{unikatni_nazev}.png"
             generate_thumb(cesta_dcm, DICOM_THUMB_FOLDER, thumb_nazev)
 
-            # ÚPRAVA INSERT DOTAZU: Přidán sloupec 'kategorie'
             cursor.execute('''
                 INSERT INTO dicom_snimky (
                     nazev_souboru, cesta_k_souboru, thumb_cesta, uzivatel_id, datum_nahrani, kategorie,
@@ -481,7 +502,7 @@ def api_nahrat_dicom():
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 soubor.filename, unikatni_nazev, thumb_nazev, uzivatel_id, 
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"), kategorie,  # ZDE PŘIDÁNA PROMĚNNÁ
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"), kategorie,
                 meta.get('PatientID'), meta.get('StudyDate'), meta.get('Weight'),
                 meta.get('KAP'), meta.get('StudyDescription'), meta.get('PatientSex'),
                 meta.get('Manufacturer'), meta.get('ManufacturerModelName'),
@@ -491,10 +512,18 @@ def api_nahrat_dicom():
             uspesne += 1
 
         conn.commit()
-        return jsonify({"status": "success", "zprava": f"Nahráno a analyzováno {uspesne} souborů."})
+        
+        # Dynamická odpověď podle toho, zda se nějaké soubory přeskočily
+        if preskocene > 0:
+            zprava_vysledku = f"Nahráno {uspesne} souborů. ({preskocene} souborů vyřazeno - neplatný formát DICOM)."
+        else:
+            zprava_vysledku = f"Nahráno a analyzováno {uspesne} souborů."
+            
+        return jsonify({"status": "success", "zprava": zprava_vysledku})
 
     except Exception as e:
-        return jsonify({"status": "error", "zprava": f"Chyba: {str(e)}"}), 500
+        # Tento globální blok teď zachytí už jen fatální chyby (např. výpadek databáze)
+        return jsonify({"status": "error", "zprava": f"Chyba databáze nebo serveru: {str(e)}"}), 500
     finally:
         conn.close()
 

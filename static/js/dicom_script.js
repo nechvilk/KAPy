@@ -40,7 +40,20 @@ if (dicomVstup) {
         if (soubory.length > 0) {
             nahledKontejner.style.display = "flex";
             
-            Array.from(soubory).forEach((soubor, index) => {
+            Array.from(soubory).forEach((puvodniSoubor, index) => {
+                
+                // --- KONTROLA A DOPLNĚNÍ PŘÍPONY ---
+                let jmenoSouboru = puvodniSoubor.name;
+                let soubor = puvodniSoubor;
+                
+                if (!jmenoSouboru.toLowerCase().endsWith('.dcm')) {
+                    jmenoSouboru += '.dcm';
+                    soubor = new File([puvodniSoubor], jmenoSouboru, { 
+                        type: puvodniSoubor.type || 'application/dicom' 
+                    });
+                }
+                // ------------------------------------
+
                 dicomSouboryProUpload.push({ file: soubor, aktivni: true });
 
                 const polozka = document.createElement("div");
@@ -66,8 +79,8 @@ if (dicomVstup) {
                     <div style="font-size: 0.6rem; color: #64748b; margin-top: 5px; pointer-events: none;">${(soubor.size / (1024 * 1024)).toFixed(2)} MB</div>
                 `;
 
-                // Spustíme asynchronní parsování a vykreslení DICOMu
-                vykresliDicomNahled(soubor, canvasId, `loader_${index}`);
+                // Spustíme asynchronní parsování a předáme navíc i index a polozku
+                vykresliDicomNahled(soubor, canvasId, `loader_${index}`, index, polozka);
 
                 polozka.addEventListener("click", () => {
                     const novyStav = !dicomSouboryProUpload[index].aktivni;
@@ -95,7 +108,8 @@ if (dicomVstup) {
 }
 
 // --- POMOCNÁ FUNKCE PRO RYCHLÉ PARSOVÁNÍ RAW DICOM DATA ---
-function vykresliDicomNahled(file, canvasId, loaderId) {
+// Přidány parametry index a polozka pro možnost vyřazení neplatných souborů
+function vykresliDicomNahled(file, canvasId, loaderId, index, polozka) {
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
@@ -205,8 +219,24 @@ function vykresliDicomNahled(file, canvasId, loaderId) {
             canvas.style.display = "block";
 
         } catch (err) {
-            // Při chybě parsování (např. komprimovaný JPEG2000 DICOM) zobrazíme náhradní text
-            document.getElementById(loaderId).innerText = "Snímek (No Preview)";
+            // POKUD TO NENÍ DICOM NEBO JE POŠKOZENÝ:
+            const loaderElement = document.getElementById(loaderId);
+            if (loaderElement) {
+                loaderElement.innerHTML = "<span style='color: #ef4444; font-weight: bold;'>Neplatný formát</span>";
+            }
+            
+            // 1. Automaticky vyřadíme soubor z pole pro nahrávání
+            if (dicomSouboryProUpload[index]) {
+                dicomSouboryProUpload[index].aktivni = false;
+            }
+            
+            // 2. Vizuálně kartu zašedneme, orámujeme červeně a zamezíme klikání
+            if (polozka) {
+                polozka.style.opacity = "0.5";
+                polozka.style.filter = "grayscale(100%)";
+                polozka.style.border = "2px dashed #ef4444";
+                polozka.style.pointerEvents = "none";
+            }
         }
     };
     reader.readAsArrayBuffer(file);
