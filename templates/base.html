@@ -193,6 +193,9 @@
                                 {% endif %}
                             </span>
                         </a>
+                        <a href="{{ url_for('export_typicke_hodnoty') }}" style="border-top: 1px solid #e2e8f0; margin-top: 5px; padding-top: 10px; font-weight: bold; color: #16a34a;">
+                            <i class="fas fa-file-excel"></i> Exportovat do CSV
+                        </a>
                     </div>
                 </div>
             </div>
@@ -201,8 +204,10 @@
 
     <div class="navbar-links">
         {% if session.get('user_id') %}
-            <span style="color: #9ca3af; font-size: 0.85rem; font-weight: bold;">👤 {{ session.get('user_jmeno') }}</span>
-            <button type="button" id="btn-odhlasit" class="btn btn-danger">Odhlásit se</button>
+            <span style="color: #9ca3af; font-size: 0.85rem; font-weight: bold; margin-right: 8px;">👤 {{ session.get('user_jmeno') }}</span>
+            <button type="button" id="btn-odhlasit" class="btn btn-outline" style="padding: 6px 15px; border-width: 1px; color: #6b7280;" title="Odhlásit se">
+                <i class="fas fa-sign-out-alt"></i> Odhlásit
+            </button>
         {% else %}
             <a href="{{ url_for('prihlaseni') }}">Přihlásit</a>
             <a href="{{ url_for('registrace') }}" class="btn btn-outline" style="padding: 6px 15px; border-width: 1px;">Registrace</a>

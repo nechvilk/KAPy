@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, render_template, request, redirect, url_for, flash, session
-from flask import send_from_directory
+from flask import send_from_directory, Response
 from dotenv import load_dotenv
 import sqlite3
 from database_init import inicializuj_databazi
@@ -11,7 +11,7 @@ import secrets
 import string
 from dicom_logic import get_drl_metadata, generate_thumb
 import pandas as pd
-import io
+from io import StringIO
 import csv
 
 # Definice povolených souborů
@@ -604,6 +604,71 @@ def api_analyzovat_vyber():
         "kategorie_js": kategorie_js,
         "datum_js": datum_js
     })
+
+# --- API PRO EXPORT TYPICKÝCH HODNOT DO CSV ---
+@app.route('/export-typicke-hodnoty')
+def export_typicke_hodnoty():
+    # Kontrola přihlášení
+    if not session.get('user_id'):
+        return redirect(url_for('prihlaseni'))
+
+    # Načtení z databáze
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    # Vybereme jen ty, které mají záznam
+    cursor.execute("SELECT kategorie, prumerny_kap, datum_aktualizace FROM typicke_hodnoty WHERE uzivatel_id = ?", (session.get('user_id'),))
+    radky = cursor.fetchall()
+    conn.close()
+
+    # Slovník pro překlad kódů z DB do lidštiny
+    nazvy_kategorii = {
+        'hrudnik_ap': 'Hrudník PA/AP',
+        'hrudnik_lat': 'Hrudník LAT',
+        'lebka_ap': 'Lebka PA/AP',
+        'lebka_lat': 'Lebka LAT',
+        'c_pater_ap': 'Krční páteř AP',
+        'c_pater_lat': 'Krční páteř LAT',
+        'th_pater_ap': 'Hrudní páteř AP',
+        'th_pater_lat': 'Hrudní páteř LAT',
+        'ls_pater_ap': 'Bederní páteř AP',
+        'ls_pater_lat': 'Bederní páteř LAT',
+        'bricho_ap': 'Břicho AP',
+        'panev_ap': 'Pánev AP'
+    }
+
+    # Vytvoření souboru v paměti
+    si = StringIO()
+    
+    # Přidání BOM (Byte Order Mark), aby český Excel poznal UTF-8 kódování a nerozbil diakritiku
+    si.write('\ufeff')
+    
+    # Český Excel preferuje jako oddělovač sloupců středník
+    writer = csv.writer(si, delimiter=';')
+    writer.writerow(['Snímaná oblast', 'Typická hodnota KAP', 'Datum aktualizace'])
+
+    for r in radky:
+        kategorie_db = r['kategorie']
+        nazev = nazvy_kategorii.get(kategorie_db, kategorie_db) # Pokud nenajde, použije kód
+        
+        # Převedeme datum z databázového "YYYY-MM-DD HH:MM:SS" na české "DD.MM.YYYY"
+        datum_db = r['datum_aktualizace']
+        try:
+            datum_obj = datetime.strptime(datum_db, '%Y-%m-%d %H:%M:%S')
+            datum_hezkym = datum_obj.strftime('%d.%m.%Y')
+        except:
+            datum_hezkym = datum_db # Fallback při nečekaném formátu
+
+        # Desetinnou tečku převedeme na čárku, aby to Excel bral jako číslo
+        hodnota_kap = str(r['prumerny_kap']).replace('.', ',')
+        
+        writer.writerow([nazev, hodnota_kap, datum_hezkym])
+
+    # Odeslání souboru uživateli
+    output = Response(si.getvalue(), mimetype='text/csv; charset=utf-8')
+    output.headers["Content-Disposition"] = "attachment; filename=typicke_hodnoty_KAP.csv"
+    
+    return output
 
 # --- API ROUTA PRO SMAZÁNÍ DICOMU (AJAX) ---
 @app.route('/api/smazat-dicom/<int:dicom_id>', methods=['DELETE'])
