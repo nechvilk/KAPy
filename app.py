@@ -540,8 +540,8 @@ def api_analyzovat_vyber():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    # ZMĚNA: Přidáno načtení sloupce 'sex'
-    dotaz = f"SELECT kap, weight, sex FROM dicom_snimky WHERE id IN ({','.join(['?']*len(ids))}) AND uzivatel_id = ?"
+    # ZMĚNA: Přidáno načtení sloupce 'study_date'
+    dotaz = f"SELECT kap, weight, sex, study_date FROM dicom_snimky WHERE id IN ({','.join(['?']*len(ids))}) AND uzivatel_id = ?"
     cursor.execute(dotaz, ids + [session.get('user_id')])
     vysledky = cursor.fetchall()
     conn.close()
@@ -552,9 +552,12 @@ def api_analyzovat_vyber():
     hodnoty_kap = []
     hodnoty_hmotnost = []
     
-    # NOVÉ: Počítadla pro pohlaví
+    # Počítadla pro pohlaví
     pocet_muzu = 0
     pocet_zen = 0
+    
+    # NOVÉ: Seznam pro zpracování dat
+    data_vysetreni = []
 
     for r in vysledky:
         kap_val = r['kap']
@@ -571,15 +574,24 @@ def api_analyzovat_vyber():
             except ValueError:
                 pass  
 
-        # NOVÉ: Zpracování pohlaví (upraveno pro 'Muž' i 'M')
+        # Zpracování pohlaví
         sex_val = r['sex']
         if sex_val:
             sex_clean = sex_val.strip().upper() 
-            # Kontrolujeme původní DICOM i překlad z dicom_logic.py
             if sex_clean in ['M', 'MUŽ', 'MUZ']:
                 pocet_muzu += 1
             elif sex_clean in ['F', 'ŽENA', 'ZENA']:
                 pocet_zen += 1
+                
+        # NOVÉ: Zpracování data vyšetření (očekáváme formát DD.MM.YYYY, jak jej ukládá dicom_logic.py)
+        date_val = r['study_date']
+        if date_val and date_val != 'N/A' and date_val != '---':
+            try:
+                # Převedeme řetězec na datetime objekt pro bezpečné porovnávání
+                date_obj = datetime.strptime(date_val.strip(), '%d.%m.%Y')
+                data_vysetreni.append(date_obj)
+            except ValueError:
+                pass # Pokud nelze převést (např. chybný formát), ignorujeme
 
     if not hodnoty_kap and not hodnoty_hmotnost:
         return jsonify({"status": "error", "zprava": "Vybrané snímky neobsahují validní data pro KAP ani hmotnost."}), 400
@@ -608,6 +620,13 @@ def api_analyzovat_vyber():
         hm_min = statistiky["hmotnost_min"] if statistiky["hmotnost_min"] != "N/A" else None
         hm_max = statistiky["hmotnost_max"] if statistiky["hmotnost_max"] != "N/A" else None
         hm_prum = statistiky["hmotnost_prumer"] if statistiky["hmotnost_prumer"] != "N/A" else None
+        
+        # NOVÉ: Nalezení nejstaršího a nejnovějšího vyšetření
+        nejstarsi_datum_str = None
+        nejnovejsi_datum_str = None
+        if data_vysetreni:
+            nejstarsi_datum_str = min(data_vysetreni).strftime('%d.%m.%Y')
+            nejnovejsi_datum_str = max(data_vysetreni).strftime('%d.%m.%Y')
 
         conn_db = sqlite3.connect(db_path)
         cursor_db = conn_db.cursor()
@@ -621,19 +640,19 @@ def api_analyzovat_vyber():
             
             cursor_db.execute("SELECT id FROM typicke_hodnoty WHERE uzivatel_id = ? AND kategorie = ?", (session.get('user_id'), kategorie_snimku))
             
-            # ZMĚNA: Uložení nových sloupců pocet_zen a pocet_muzu
+            # ZMĚNA: Uložení nových sloupců nejstarsi_vysetreni a nejnovejsi_vysetreni
             if cursor_db.fetchone():
                 cursor_db.execute('''
                     UPDATE typicke_hodnoty 
-                    SET prumerny_kap = ?, pocet_snimku = ?, min_hmotnost = ?, max_hmotnost = ?, prumerna_hmotnost = ?, pocet_zen = ?, pocet_muzu = ?, datum_aktualizace = ? 
+                    SET prumerny_kap = ?, pocet_snimku = ?, min_hmotnost = ?, max_hmotnost = ?, prumerna_hmotnost = ?, pocet_zen = ?, pocet_muzu = ?, nejstarsi_vysetreni = ?, nejnovejsi_vysetreni = ?, datum_aktualizace = ? 
                     WHERE uzivatel_id = ? AND kategorie = ?
-                ''', (prumer_kap, pocet_snimku, hm_min, hm_max, hm_prum, pocet_zen, pocet_muzu, ted_db, session.get('user_id'), kategorie_snimku))
+                ''', (prumer_kap, pocet_snimku, hm_min, hm_max, hm_prum, pocet_zen, pocet_muzu, nejstarsi_datum_str, nejnovejsi_datum_str, ted_db, session.get('user_id'), kategorie_snimku))
             else:
                 cursor_db.execute('''
                     INSERT INTO typicke_hodnoty 
-                    (uzivatel_id, kategorie, prumerny_kap, pocet_snimku, min_hmotnost, max_hmotnost, prumerna_hmotnost, pocet_zen, pocet_muzu, datum_aktualizace) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (session.get('user_id'), kategorie_snimku, prumer_kap, pocet_snimku, hm_min, hm_max, hm_prum, pocet_zen, pocet_muzu, ted_db))
+                    (uzivatel_id, kategorie, prumerny_kap, pocet_snimku, min_hmotnost, max_hmotnost, prumerna_hmotnost, pocet_zen, pocet_muzu, nejstarsi_vysetreni, nejnovejsi_vysetreni, datum_aktualizace) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (session.get('user_id'), kategorie_snimku, prumer_kap, pocet_snimku, hm_min, hm_max, hm_prum, pocet_zen, pocet_muzu, nejstarsi_datum_str, nejnovejsi_datum_str, ted_db))
             
             conn_db.commit()
             kategorie_js = kategorie_snimku
@@ -660,9 +679,9 @@ def export_typicke_hodnoty():
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    # ZMĚNA: Načtení pocet_zen a pocet_muzu
+    # ZMĚNA: Načtení nejstarsi_vysetreni a nejnovejsi_vysetreni
     cursor.execute("""
-        SELECT kategorie, prumerny_kap, pocet_snimku, min_hmotnost, max_hmotnost, prumerna_hmotnost, pocet_zen, pocet_muzu, datum_aktualizace 
+        SELECT kategorie, prumerny_kap, pocet_snimku, min_hmotnost, max_hmotnost, prumerna_hmotnost, pocet_zen, pocet_muzu, nejstarsi_vysetreni, nejnovejsi_vysetreni, datum_aktualizace 
         FROM typicke_hodnoty 
         WHERE uzivatel_id = ?
     """, (session.get('user_id'),))
@@ -688,11 +707,11 @@ def export_typicke_hodnoty():
     si.write('\ufeff')
     writer = csv.writer(si, delimiter=';')
     
-    # ZMĚNA: Přidány dva sloupce do hlavičky
+    # ZMĚNA: Přidány dva sloupce do hlavičky CSV
     writer.writerow([
         'Snímaná oblast', 'Typická hodnota KAP', 'Počet snímků', 
         'Minimální hmotnost', 'Maximální hmotnost', 'Průměrná hmotnost', 
-        'Počet žen', 'Počet mužů', 'Datum aktualizace'
+        'Počet žen', 'Počet mužů', 'Nejstarší vyšetření', 'Nejnovější vyšetření', 'Datum aktualizace'
     ])
 
     def formatuj_cislo(val):
@@ -715,12 +734,15 @@ def export_typicke_hodnoty():
         max_hm = formatuj_cislo(r['max_hmotnost'])
         prum_hm = formatuj_cislo(r['prumerna_hmotnost'])
         
-        # ZMĚNA: Ošetření prázdných hodnot a načtení do proměnných
         p_zen = r['pocet_zen'] if r['pocet_zen'] is not None else "0"
         p_muzu = r['pocet_muzu'] if r['pocet_muzu'] is not None else "0"
         
+        # ZMĚNA: Načtení dat vyšetření
+        nejstarsi = r['nejstarsi_vysetreni'] if r['nejstarsi_vysetreni'] else "N/A"
+        nejnovejsi = r['nejnovejsi_vysetreni'] if r['nejnovejsi_vysetreni'] else "N/A"
+        
         # ZMĚNA: Zápis do řádku ve správném pořadí
-        writer.writerow([nazev, hodnota_kap, pocet, min_hm, max_hm, prum_hm, p_zen, p_muzu, datum_hezkym])
+        writer.writerow([nazev, hodnota_kap, pocet, min_hm, max_hm, prum_hm, p_zen, p_muzu, nejstarsi, nejnovejsi, datum_hezkym])
 
     output = Response(si.getvalue(), mimetype='text/csv; charset=utf-8')
     output.headers["Content-Disposition"] = "attachment; filename=typicke_hodnoty_KAP.csv"

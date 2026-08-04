@@ -98,6 +98,8 @@ def inicializuj_databazi(path):
         prumerna_hmotnost REAL,
         pocet_zen INTEGER,
         pocet_muzu INTEGER,
+        nejstarsi_vysetreni TEXT,
+        nejnovejsi_vysetreni TEXT,
         datum_aktualizace TEXT,
         UNIQUE(uzivatel_id, kategorie),
         FOREIGN KEY (uzivatel_id) REFERENCES uzivatele(id)
@@ -116,7 +118,9 @@ def inicializuj_databazi(path):
         'max_hmotnost': 'REAL',
         'prumerna_hmotnost': 'REAL',
         'pocet_zen': 'INTEGER DEFAULT 0',
-        'pocet_muzu': 'INTEGER DEFAULT 0'
+        'pocet_muzu': 'INTEGER DEFAULT 0',
+        'nejstarsi_vysetreni': 'TEXT',
+        'nejnovejsi_vysetreni': 'TEXT'
     }
     
     for nazev_sloupce, datovy_typ in nove_sloupce_th.items():
