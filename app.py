@@ -93,8 +93,7 @@ def registrace():
 # --- API ROUTA PRO VYGENEROVÁNÍ HESLA ---
 @app.route('/api/generovat-heslo', methods=['GET'])
 def api_generovat_heslo():
-    # Zvýšil jsem délku na 12 pro ještě lepší bezpečnost, ale můžeš nechat 10
-    length = 12 
+    length = 8 
     alphabet = string.ascii_letters + string.digits + string.punctuation
     
     # Vygenerování hesla pomocí tvého kódu

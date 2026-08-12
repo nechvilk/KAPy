@@ -3,50 +3,37 @@
 {% block title %}Domovská stránka | KAPy{% endblock %}
 
 {% block content %}
-<header>
-    <h1>Vítejte!</h1>
-</header>
+<div style="max-width: 680px; margin: 2rem auto; padding: 0 15px;">
 
-<main>
-    <!-- 1. O aplikaci (Vidí všichni - přihlášení i nepřihlášení) -->
-    <div class="card">
-        <h2>O projektu </h2>
+    <!-- O aplikaci -->
+    <div class="card" style="padding: 2.5rem 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.06), 0 4px 6px rgba(0,0,0,0.03); background-color: #ffffff; border: 1px solid #f3f4f6;">
         
-        <p class="justify-text"> 
-            Nástroj k analýze typických hodnot veličin sloužících k
-            posouzení optimalizace radiační ochrany pomocí diagnostických referenčních úrovní (DRÚ)
-            z vašich skiagrafických DICOM dat.
+        <h1 style="color: #111827; font-size: 2rem; margin-top: 0; margin-bottom: 0.5rem; font-weight: 700;">Vítejte!</h1>
+        <p style="color: #6b7280; font-size: 1.05rem; margin-bottom: 2rem;">Nástroj pro analýzu typických hodnot KAP ve skiagrafii</p>
+
+        <h2 style="color: #1f2937; font-size: 1.25rem; margin-bottom: 1rem; border-bottom: 2px solid #f3f4f6; padding-bottom: 0.5rem;">O projektu</h2>
+        
+        <p style="color: #374151; line-height: 1.6; text-align: justify; margin-bottom: 1rem;">
+            Aplikace slouží k analýze typických hodnot veličin určených k posouzení optimalizace radiační ochrany pomocí diagnostických referenčních úrovní (DRÚ) z vašich skiagrafických DICOM dat.
         </p>
         
-        <p class="justify-text" style="margin-top: 15px;">
-            Nahrávejte snímky, organizujte je podle kategorií a
-            jediným kliknutím získejte statistický přehled
-            o průměrných hodnotách KAP (Kerma Area Product) a hmotnostech vybraných pacientů.
-            Všechna data pod kontrolou, kdykoliv a kdekoliv.
+        <p style="color: #374151; line-height: 1.6; text-align: justify; margin: 0;">
+            Nahrávejte snímky bezpečně anonymizované už na straně klienta, organizujte je podle kategorií a jediným kliknutím získejte statistický přehled o průměrných hodnotách KAP (Kerma Area Product), hmotnostech vybraných pacientů a dalších parametrech. Všechna data máte pod kontrolou, kdykoliv a kdekoliv s možností exportu do CSV, resp. do Excel.
         </p>
     </div>
 
-    <!-- 2. Stav přihlášení -->
-    {% if session.get('user_id') %}
-        <!-- Pro přihlášené -->
-        <div class="card" style="margin-top: 20px;">
-            <h2>Jste přihlášeni ✅</h2>
-            <p>
-                Vítejte zpět, <strong>{{ session.get('user_jmeno') }}</strong>!
-                Můžete přejít do sekce <strong>DICOM data</strong> v horním menu
-                a začít pracovat.
-            </p>
-        </div>
-    {% else %}
-        <!-- Pro nepřihlášené (Navádí na stávající prvky v navbaru) -->
-        <div class="card" style="margin-top: 20px;">
-            <h2>Uživatelská sekce 🔒</h2>
-            <p>
-                Pro přístup k nahrávání a zpracování DICOM snímků se prosím
-                <strong>přihlaste</strong> nebo <strong>zaregistrujte</strong>
-                pomocí tlačítek v pravém horním rohu stránky.
-            </p>
-        </div>
-    {% endif %}
-</main>
+    <!-- Společná patička (Autorství & GitHub) -->
+    <div style="margin-top: 2.5rem; margin-bottom: 1rem; text-align: center; font-size: 0.85rem; color: #9ca3af;">
+        <p style="margin: 0;">&copy; 2026 Karel Nechvíl</p>
+        <p style="margin: 0.4rem 0 0 0;">
+            <a href="https://github.com/nechvilk/KAPy" target="_blank" style="color: #6b7280; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: color 0.2s;" onmouseover="this.style.color='#374151'" onmouseout="this.style.color='#6b7280'">
+                <svg height="15" width="15" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                </svg>
+                GitHub repository
+            </a>
+        </p>
+    </div>
+
+</div>
 {% endblock %}

@@ -202,15 +202,22 @@
         {% endif %}
     </div>
 
-    <div class="navbar-links">
+    <!-- Zde je upravená část s avatarem -->
+    <div class="navbar-links" style="display: flex; align-items: center; gap: 12px;">
         {% if session.get('user_id') %}
-            <span style="color: #9ca3af; font-size: 0.85rem; font-weight: bold; margin-right: 8px;">👤 {{ session.get('user_jmeno') }}</span>
-            <button type="button" id="btn-odhlasit" class="btn btn-outline" style="padding: 6px 15px; border-width: 1px; color: #6b7280;" title="Odhlásit se">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="width: 32px; height: 32px; background-color: #3b82f6; color: white; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="{{ session.get('user_jmeno') }}">
+                    {{ session.get('user_jmeno')[:1]|upper if session.get('user_jmeno') else '?' }}
+                </span>
+                <span style="font-weight: 600; color: #374151; font-size: 0.95rem;">{{ session.get('user_jmeno') }}</span>
+            </div>
+            
+            <button type="button" id="btn-odhlasit" class="btn btn-outline" style="padding: 6px 15px; border-width: 1px; color: #6b7280; margin-left: 4px;" title="Odhlásit se">
                 <i class="fas fa-sign-out-alt"></i> Odhlásit
             </button>
         {% else %}
-            <a href="{{ url_for('prihlaseni') }}">Přihlásit</a>
-            <a href="{{ url_for('registrace') }}" class="btn btn-outline" style="padding: 6px 15px; border-width: 1px;">Registrace</a>
+            <a href="{{ url_for('prihlaseni') }}" style="font-weight: 500;">Přihlásit</a>
+            <a href="{{ url_for('registrace') }}" class="btn btn-outline" style="padding: 6px 15px; border-width: 1px; font-weight: 500;">Registrace</a>
         {% endif %}
     </div>
 
