@@ -1,7 +1,10 @@
 from flask import Flask, jsonify, render_template, request, redirect, url_for, flash, session
 from flask import send_from_directory, Response
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 import sqlite3
+import re
 from database_init import inicializuj_databazi
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -30,8 +33,6 @@ DICOM_THUMB_FOLDER = os.path.join(UPLOAD_ROOT, 'dicom_nahledy')
 for slozka in [FOTKY_FOLDER, DICOM_RAW_FOLDER, DICOM_THUMB_FOLDER]:
     os.makedirs(slozka, exist_ok=True)
 
-
-
 # Načteme proměnné ze souboru .env
 load_dotenv()
 
@@ -50,7 +51,32 @@ os.makedirs(app.instance_path, exist_ok=True)
 print(f"Kontroluji (aktualizuji) strukturu databáze: {db_path}")
 inicializuj_databazi(db_path)
 
-# --- NOVÉ: CONTEXT PROCESSOR PRO TYPICKÉ HODNOTY V NAVBARU ---
+# --- INICIALIZACE LIMITERU ---
+# Toto dej někam nahoru k inicializaci samotné app = Flask(__name__)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://" # Pro produkci se často používá Redis, ale memory pro začátek naprosto stačí
+)
+
+# --- POMOCNÁ FUNKCE PRO KONTROLU HESLA ---
+def je_heslo_bezpecne(heslo):
+    """
+    Zkontroluje, zda má heslo alespoň 8 znaků, obsahuje velké písmeno, 
+    malé písmeno a číslici.
+    """
+    if len(heslo) < 8:
+        return False
+    if not re.search(r"[a-z]", heslo):
+        return False
+    if not re.search(r"[A-Z]", heslo):
+        return False
+    if not re.search(r"[0-9]", heslo):
+        return False
+    return True
+
+# --- CONTEXT PROCESSOR PRO TYPICKÉ HODNOTY V NAVBARU ---
 @app.context_processor
 def inject_typicke_hodnoty():
     typicke_hodnoty = {}
@@ -84,7 +110,7 @@ def index():
     # Flask automaticky hledá ve složce 'templates'
     return render_template("index.html")
 
-# --- 1. ROUTA PRO ZOBRAZENÍ STRÁNKY ---
+# --- ROUTA PRO ZOBRAZENÍ STRÁNKY REGISTRACE ---
 @app.route('/registrace', methods=['GET'])
 def registrace():
     # Jen vykreslí HTML šablonu, nic víc
@@ -93,13 +119,30 @@ def registrace():
 # --- API ROUTA PRO VYGENEROVÁNÍ HESLA ---
 @app.route('/api/generovat-heslo', methods=['GET'])
 def api_generovat_heslo():
-    length = 8 
+    # U vygenerovaných hesel, která si uživatel nemusí pamatovat, 
+    # je dobrým zvykem dát rovnou větší délku (např. 12 nebo 16).
+    # Můžeš ale klidně nechat 8.
+    length = 12
+    
+    # 1. Garantujeme alespoň jeden znak z každé povinné skupiny
+    password_chars = [
+        secrets.choice(string.ascii_lowercase),
+        secrets.choice(string.ascii_uppercase),
+        secrets.choice(string.digits)
+    ]
+    
+    # 2. Zbytek doplníme náhodně z celé abecedy (včetně interpunkce)
     alphabet = string.ascii_letters + string.digits + string.punctuation
+    password_chars += [secrets.choice(alphabet) for _ in range(length - 3)]
     
-    # Vygenerování hesla pomocí tvého kódu
-    password = ''.join(secrets.choice(alphabet) for _ in range(length))
+    # 3. Seznam promícháme, aby první 3 znaky nebyly vždy (malé, velké, číslo).
+    # Použijeme SystemRandom(), což je kryptograficky bezpečný generátor 
+    # (standardní random.shuffle z modulu random by nebyl pro hesla vhodný).
+    secure_random = secrets.SystemRandom()
+    secure_random.shuffle(password_chars)
     
-    # Odeslání hesla zpět na frontend ve formátu JSON
+    password = ''.join(password_chars)
+    
     return jsonify({
         "status": "success", 
         "heslo": password
@@ -107,6 +150,7 @@ def api_generovat_heslo():
 
 # --- 2. API ROUTA PRO ZPRACOVÁNÍ DAT (AJAX) ---
 @app.route('/api/registrace', methods=['POST'])
+@limiter.limit("5 per hour")  # Ochrana: Z jedné IP adresy lze zkusit registraci jen 5x za hodinu!
 def api_registrace():
     data = request.get_json()
 
@@ -117,8 +161,16 @@ def api_registrace():
     email = data.get('email')
     heslo_raw = data.get('heslo')
 
+    # 1. Kontrola, zda jsou vyplněna všechna pole
     if not all([jmeno, email, heslo_raw]):
         return jsonify({"status": "error", "zprava": "Všechna pole jsou povinná! ✍️"}), 400
+
+    # 2. Bezpečnostní kontrola síly hesla
+    if not je_heslo_bezpecne(heslo_raw):
+        return jsonify({
+            "status": "error", 
+            "zprava": "Heslo musí mít alespoň 8 znaků, obsahovat malá i velká písmena a číslici. 🔒"
+        }), 400
 
     ted = datetime.now()
     datum_reg = ted.strftime("%Y-%m-%d %H:%M:%S")
@@ -134,7 +186,6 @@ def api_registrace():
         )
         conn.commit()
         
-        # Místo redirectu (který AJAX neumí přímo), posíláme URL k přesměrování
         return jsonify({
             "status": "success", 
             "zprava": "Registrace proběhla úspěšně! ✅ Přesměrovávám...",
@@ -150,7 +201,7 @@ def api_registrace():
     finally:
         conn.close()
 
-# --- 1. ROUTA PRO ZOBRAZENÍ STRÁNKY PŘIHLÁŠENÍ ---
+# --- ROUTA PRO ZOBRAZENÍ STRÁNKY PŘIHLÁŠENÍ ---
 @app.route('/prihlaseni', methods=['GET'])
 def prihlaseni():
     # Jen vykreslí HTML šablonu

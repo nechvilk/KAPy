@@ -24,6 +24,86 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 4000);
     }
 
+    // --- REGISTRACE: Odeslání formuláře ---
+    const regForm = document.getElementById('registracni-form');
+    if (regForm) {
+        regForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Zabrání výchozímu odeslání stránky (reloadu)
+
+            const jmeno = document.getElementById('jmeno').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const heslo = document.getElementById('heslo').value;
+
+            // Klientská kontrola hesla (stejná logika jako na backendu)
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+            if (!passwordRegex.test(heslo)) {
+                showToast('Heslo musí mít alespoň 8 znaků, obsahovat malá i velká písmena a číslici.', 'error');
+                return; // Zastaví proces, na server se nic nepošle
+            }
+
+            // Vizuální zpětná vazba na tlačítku
+            const btnSubmit = document.getElementById('reg-tlacitko');
+            const originalText = btnSubmit.innerText;
+            btnSubmit.innerText = 'Registruji...';
+            btnSubmit.disabled = true;
+
+            try {
+                const response = await fetch('/api/registrace', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ jmeno, email, heslo })
+                });
+
+                const data = await response.json();
+
+                // Pokud backend vrátí 200 OK a success
+                if (response.ok && data.status === 'success') {
+                    showToast(data.zprava, 'success');
+                    // Počkáme 1.5 sekundy, aby si uživatel stihl přečíst toast, pak přesměrujeme
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 1500);
+                } else {
+                    // Backend vrátil chybu (např. 400 špatné heslo, 409 email existuje, 429 rate limit)
+                    showToast(data.zprava || 'Došlo k neznámé chybě.', 'error');
+                    btnSubmit.innerText = originalText;
+                    btnSubmit.disabled = false;
+                }
+            } catch (error) {
+                console.error('Chyba při komunikaci se serverem:', error);
+                showToast('Nepodařilo se spojit se serverem. Zkontrolujte připojení.', 'error');
+                btnSubmit.innerText = originalText;
+                btnSubmit.disabled = false;
+            }
+        });
+    }
+
+    // --- REGISTRACE: Vygenerování hesla ---
+    const btnGenerovat = document.getElementById('btn-generovat');
+    if (btnGenerovat) {
+        btnGenerovat.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/generovat-heslo');
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    const hesloInput = document.getElementById('heslo');
+                    hesloInput.value = data.heslo;
+                    // Změníme typ inputu na 'text', aby si uživatel mohl vygenerované heslo zkopírovat
+                    hesloInput.type = 'text'; 
+                    showToast('Bezpečné heslo bylo vygenerováno.', 'success');
+                } else {
+                    showToast('Nepodařilo se vygenerovat heslo.', 'error');
+                }
+            } catch (error) {
+                console.error('Chyba při generování hesla:', error);
+                showToast('Nepodařilo se spojit se serverem.', 'error');
+            }
+        });
+    }
+
 // --- 1. ZOBRAZENÍ REÁLNÝCH NÁHLEDŮ S MOŽNOSTÍ VYŘAZENÍ ---
 const dicomVstup = document.getElementById("dicom-vstup");
 const nahledKontejner = document.getElementById("dicom-nahled-kontajner");
