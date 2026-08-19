@@ -322,6 +322,7 @@ def nahrana_fotka(filename):
 
 # --- ROUTA PRO DICOM NÁHLEDY (PNG) ---
 @app.route('/uploads/dicom-nahled/<filename>')
+@limiter.exempt  # Exemptujeme tuto routu od limitů, protože prohlížeč může načítat mnoho náhledů najednou
 def dicom_nahled(filename):
     return send_from_directory(DICOM_THUMB_FOLDER, filename)
 
