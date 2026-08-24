@@ -2,6 +2,7 @@ from flask import Flask, jsonify, render_template, request, redirect, url_for, f
 from flask import send_from_directory, Response
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
 import sqlite3
 import re
@@ -40,6 +41,9 @@ app = Flask(__name__, instance_relative_config=True)
 # Nastavení tajného klíče z .env (pokud chybí, použije se fallback)
 #app.secret_key = os.getenv('SECRET_KEY', 'defaultni-nebezpecny-klic') # Nutné pro session a flash
 app.secret_key = os.environ['SECRET_KEY']
+
+# Inicializace CSRF ochrany pro celou aplikaci
+csrf = CSRFProtect(app)
 
 # Cesta k databázi v instance složce
 # Flask automaticky vytvoří cestu app.instance_path

@@ -24,6 +24,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 4000);
     }
 
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
     // --- REGISTRACE: Odeslání formuláře ---
     const regForm = document.getElementById('registracni-form');
     if (regForm) {
@@ -51,7 +53,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 const response = await fetch('/api/registrace', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
                     },
                     body: JSON.stringify({ jmeno, email, heslo })
                 });
@@ -373,6 +376,7 @@ function vykresliDicomNahled(file, canvasId, loaderId, index, polozka) {
             
             const xhr = new XMLHttpRequest();
             xhr.open("POST", "/api/nahrat-dicom", true);
+            xhr.setRequestHeader("X-CSRFToken", csrfToken);
 
             xhr.upload.addEventListener("progress", (e) => {
                 if (e.lengthComputable) {
@@ -449,7 +453,10 @@ function vykresliDicomNahled(file, canvasId, loaderId, index, polozka) {
             try {
                 const response = await fetch("/api/analyzovat-vyber", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrfToken
+                    },
                     body: JSON.stringify({ ids: vybranaIDs })
                 });
 
@@ -519,7 +526,13 @@ function vykresliDicomNahled(file, canvasId, loaderId, index, polozka) {
             btn.disabled = true;
 
             try {
-                const response = await fetch(`/api/smazat-dicom/${dicomId}`, { method: "DELETE" });
+                const response = await fetch(`/api/smazat-dicom/${dicomId}`, { 
+                    method: "DELETE",
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                });
                 const result = await response.json();
 
                 if (response.ok) {

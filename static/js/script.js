@@ -56,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLeva = document.getElementById('sipka-leva');
     const btnPrava = document.getElementById('sipka-prava');
 
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
 // Naše "chytrá paměť" pro správu stavu fotek před odesláním
     let fotkyKNahrani = [];
 
@@ -244,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             xhr.open('POST', '/api/nahrat-foto');
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
             xhr.send(balicek);
         });
     }
@@ -278,7 +281,9 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch('/api/registrace', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json',
+                               'X-CSRFToken': csrfToken
+                    },
                     body: JSON.stringify(formData)
                 });
 
@@ -320,7 +325,9 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch('/api/prihlaseni', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json',
+                               'X-CSRFToken': csrfToken
+                    },
                     body: JSON.stringify(formData)
                 });
 
@@ -363,7 +370,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 const response = await fetch(`/api/smazat-foto/${fotoId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
                 });
 
                 const result = await response.json();
@@ -419,7 +429,10 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch('/api/odhlaseni', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken   
+                    }
                 });
 
                 const result = await response.json();
@@ -569,7 +582,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 const response = await fetch(`/api/admin/prepni-blokaci/${userId}`, { 
-                    method: 'POST' 
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken } 
                 });
                 const result = await response.json();
 
