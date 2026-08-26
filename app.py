@@ -1,68 +1,97 @@
+import os
+import re
+import csv
+import click
+import string
+import secrets
+import sqlite3
+from io import StringIO
+from datetime import datetime
+
+import pandas as pd
+import pydicom
+from pydicom.errors import InvalidDicomError
+from dotenv import load_dotenv
+
 from flask import Flask, jsonify, render_template, request, redirect, url_for, flash, session
 from flask import send_from_directory, Response
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
-from dotenv import load_dotenv
-import sqlite3
-import re
-from database_init import inicializuj_databazi
-from datetime import datetime
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import os
-import secrets
-import string
+from functools import wraps
+
+from database_init import inicializuj_databazi
 from dicom_logic import get_drl_metadata, generate_thumb
-import pandas as pd
-from io import StringIO
-import csv
-import pydicom
-from pydicom.errors import InvalidDicomError
 
-# Definice povolených souborů
+# Načtení proměnných prostředí z .env
+load_dotenv()
+
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif'}
-# Cesta, kam se budou fotky fyzicky ukládat (relativně k app.py)
 
-# --- KONFIGURACE CEST ---
-UPLOAD_ROOT = 'uploads'
+# Inicializace Flask aplikace
+app = Flask(__name__, instance_relative_config=True)
+
+# 1. Správné předávání IP adres uživatelů za Nginx / Docker proxy
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+# 2. Tajný klíč a velikostní limity
+app.secret_key = os.getenv('SECRET_KEY', 'dev-default-key-zmente-v-env')
+app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # Ochrana disku/RAM (max 32 MB per request)
+
+# CSRF Ochrana
+csrf = CSRFProtect(app)
+
+# 3. Cesty navázané výhradně na app.instance_path (nezávislé na pracovním adresáři)
+db_path = os.path.join(app.instance_path, os.getenv('DATABASE_NAME', 'moje_data.db'))
+
+UPLOAD_ROOT = os.path.join(app.instance_path, 'uploads')
 FOTKY_FOLDER = os.path.join(UPLOAD_ROOT, 'fotky')
 DICOM_RAW_FOLDER = os.path.join(UPLOAD_ROOT, 'dicom_originaly')
 DICOM_THUMB_FOLDER = os.path.join(UPLOAD_ROOT, 'dicom_nahledy')
 
-# Automatické vytvoření struktury při startu
-for slozka in [FOTKY_FOLDER, DICOM_RAW_FOLDER, DICOM_THUMB_FOLDER]:
+# Automatické vytvoření složek v instance/
+for slozka in [app.instance_path, FOTKY_FOLDER, DICOM_RAW_FOLDER, DICOM_THUMB_FOLDER]:
     os.makedirs(slozka, exist_ok=True)
 
-# Načteme proměnné ze souboru .env
-load_dotenv()
-
-app = Flask(__name__, instance_relative_config=True)
-# Nastavení tajného klíče z .env (pokud chybí, použije se fallback)
-#app.secret_key = os.getenv('SECRET_KEY', 'defaultni-nebezpecny-klic') # Nutné pro session a flash
-app.secret_key = os.environ['SECRET_KEY']
-
-# Inicializace CSRF ochrany pro celou aplikaci
-csrf = CSRFProtect(app)
-
-# Cesta k databázi v instance složce
-# Flask automaticky vytvoří cestu app.instance_path
-db_path = os.path.join(app.instance_path, os.getenv('DATABASE_NAME', 'moje_data.db'))
-# Zajistíme, aby složka instance existovala (vytvoří se při prvním spuštění)
-os.makedirs(app.instance_path, exist_ok=True)
-
-# AUTOMATICKÁ KONTROLA A AKTUALIZACE DATABÁZE
-print(f"Kontroluji (aktualizuji) strukturu databáze: {db_path}")
-inicializuj_databazi(db_path)
-
-# --- INICIALIZACE LIMITERU ---
-# Toto dej někam nahoru k inicializaci samotné app = Flask(__name__)
+# 4. Limiter s konfigurací z .env (memory pro vývoj, Redis pro více workerů v produkci)
 limiter = Limiter(
     get_remote_address,
     app=app,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://" # Pro produkci se často používá Redis, ale memory pro začátek naprosto stačí
+    storage_uri=os.getenv('RATELIMIT_STORAGE_URI', 'memory://')
 )
+
+# 5. CLI příkaz pro inicializaci databáze namísto volání při importu
+@app.cli.command('init-db')
+def init_db_command():
+    """Vytvoří nebo aktualizuje databázové schématu."""
+    print(f"Kontroluji (aktualizuji) strukturu databáze: {db_path}")
+    inicializuj_databazi(db_path)
+    print("Inicializace databáze dokončena.")
+
+@app.cli.command('make-admin')
+@click.argument('identifier')
+def make_admin_command(identifier):
+    """Povýší zadaného uživatele (podle jména nebo e-mailu) na roli admin."""
+    if not os.path.exists(db_path):
+        print(f"❌ Chyba: Databáze nebyla nalezena v: {db_path}\nSpusťte nejdříve 'flask init-db'.")
+        return
+
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        # Hledá podle jména NEBO e-mailu
+        cursor.execute(
+            "UPDATE uzivatele SET role = 'admin' WHERE jmeno = ? OR email = ?", 
+            (identifier, identifier)
+        )
+
+        if cursor.rowcount > 0:
+            print(f"✅ Uživatel '{identifier}' byl úspěšně povýšen na admina.")
+        else:
+            print(f"❌ Chyba: Uživatel s jménem nebo e-mailem '{identifier}' nebyl nalezen.")
 
 # --- POMOCNÁ FUNKCE PRO KONTROLU HESLA ---
 def je_heslo_bezpecne(heslo):
@@ -108,6 +137,15 @@ def inject_typicke_hodnoty():
         except sqlite3.OperationalError:
             pass 
     return dict(typicke_hodnoty=typicke_hodnoty)
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get('role') != 'admin':
+            flash("Sem mají přístup pouze vyvolení! 🛑", "danger")
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route("/")
 def index():
@@ -260,20 +298,19 @@ def api_prihlaseni():
 
 # --- ROUTA PRO ADMIN ROZHRANÍ (admin.html) ---
 @app.route('/admin')
+@admin_required
 def admin_panel():
-    # Kontrola, zda je přihlášen admin
-    if session.get('role') != 'admin':
-        flash("Sem mají přístup pouze vyvolení! 🛑")
-        return redirect(url_for('index'))
-
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    
-    # Načteme všechny uživatele (kromě tebe samotného, abys ses omylem nezablokoval)
-    cursor.execute("SELECT id, jmeno, email, role, je_blokovan FROM uzivatele WHERE id != ?", (session.get('user_id'),))
-    vsichni_uzivatele = cursor.fetchall()
-    conn.close()
+    # Context manager 'with' automaticky spravuje transakce a zaručí uzavření spojení
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Načteme ostatní uživatele (mimo aktuálně přihlášeného admina)
+        cursor.execute(
+            "SELECT id, jmeno, email, role, je_blokovan FROM uzivatele WHERE id != ?", 
+            (session.get('user_id'),)
+        )
+        vsichni_uzivatele = cursor.fetchall()
 
     return render_template('admin.html', uzivatele=vsichni_uzivatele)
 
