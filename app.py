@@ -39,7 +39,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # 2. Tajný klíč a velikostní limity
 app.secret_key = os.getenv('SECRET_KEY', 'dev-default-key-zmente-v-env')
-app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # Ochrana disku/RAM (max 32 MB per request)
+app.config['MAX_CONTENT_LENGTH'] = 512 * 1024 * 1024  # Ochrana disku/RAM (max 512 MB per request)
 
 # CSRF Ochrana
 csrf = CSRFProtect(app)
